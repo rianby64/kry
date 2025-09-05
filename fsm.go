@@ -29,15 +29,26 @@ type eventTransitionState[E, S, P comparable] struct {
 	Src []S
 	Dst S
 
-	Enter func(ctx context.Context, instance InstanceFSM[E, S, P], param ...P) error
+	EnterNoParams func(ctx context.Context, instance InstanceFSM[E, S, P]) error
+	Enter         func(ctx context.Context, instance InstanceFSM[E, S, P], param P) error
+	EnterVariadic func(ctx context.Context, instance InstanceFSM[E, S, P], param ...P) error
 }
 
+// Event describes a transition. It contains the name of the event, the source states,
+// the destination state, and optional callbacks that are executed when the event is triggered.
+//
+//	// Implementation notes:
+//	Enter(...)                     // if you want to execute a callback without parameters.
+//	EnterParam(..., param P)       // if you want to execute a callback with one parameter.
+//	EnterVariadic(..., param ...P) // if you want to execute a callback with multiple parameters.
 type Event[E, S, P comparable] struct {
 	Name E
 	Src  []S
 	Dst  S
 
-	Enter func(ctx context.Context, instance InstanceFSM[E, S, P], param ...P) error
+	EnterNoParams func(ctx context.Context, instance InstanceFSM[E, S, P]) error
+	Enter         func(ctx context.Context, instance InstanceFSM[E, S, P], param P) error
+	EnterVariadic func(ctx context.Context, instance InstanceFSM[E, S, P], param ...P) error
 }
 
 type FSM[E, S, P comparable] struct {
@@ -55,9 +66,12 @@ func New[E, S, P comparable](initialState S, events []Event[E, S, P]) *FSM[E, S,
 	mapEvents := make(map[E]eventTransitionState[E, S, P])
 	for _, event := range events {
 		mapEvents[event.Name] = eventTransitionState[E, S, P]{
-			Src:   event.Src,
-			Dst:   event.Dst,
-			Enter: event.Enter,
+			Src: event.Src,
+			Dst: event.Dst,
+
+			EnterVariadic: event.EnterVariadic,
+			Enter:         event.Enter,
+			EnterNoParams: event.EnterNoParams,
 		}
 
 		for _, state := range event.Src {
@@ -102,11 +116,11 @@ func (fsm *FSM[E, S, P]) Event(ctx context.Context, event E, param ...P) error {
 		newState := stateTransition.Dst
 		fsm.currentState = newState
 
-		if stateTransition.Enter == nil {
+		if stateTransition.EnterVariadic == nil {
 			return nil
 		}
 
-		err := stateTransition.Enter(ctx, fsm, param...)
+		err := fsm.switchEventByLengthParams(ctx, stateTransition, param...)
 		if err != nil {
 			fsm.currentState = currentState
 
@@ -118,4 +132,25 @@ func (fsm *FSM[E, S, P]) Event(ctx context.Context, event E, param ...P) error {
 	}
 
 	return fmt.Errorf("event (%v) state transition %w: %v", event, ErrNotFound, currentState)
+}
+
+func (fsm *FSM[E, S, P]) switchEventByLengthParams(ctx context.Context, stateTransition eventTransitionState[E, S, P], param ...P) error {
+	switch len(param) {
+	case 0:
+		if stateTransition.EnterNoParams == nil {
+			return stateTransition.EnterVariadic(ctx, fsm)
+		}
+
+		return stateTransition.EnterNoParams(ctx, fsm)
+
+	case 1:
+		if stateTransition.Enter == nil {
+			return stateTransition.EnterVariadic(ctx, fsm, param...)
+		}
+
+		return stateTransition.Enter(ctx, fsm, param[0])
+
+	default:
+		return stateTransition.EnterVariadic(ctx, fsm, param...)
+	}
 }

@@ -123,7 +123,7 @@ func Test_execute_Enter_one_time_one_parameter(t *testing.T) {
 			{
 				Name: "open",
 				Src:  []int{close}, Dst: open,
-				Enter: func(ctx context.Context, instance fsm.InstanceFSM[string, int, Param], param ...Param) error {
+				EnterVariadic: func(ctx context.Context, instance fsm.InstanceFSM[string, int, Param], param ...Param) error {
 					require.Equal(t, 1, len(param), "expected one parameter")
 					require.Equal(t, "test", param[0].Value)
 					require.Equal(t, open, instance.Current())
@@ -135,7 +135,7 @@ func Test_execute_Enter_one_time_one_parameter(t *testing.T) {
 			{
 				Name: "close",
 				Src:  []int{open}, Dst: close,
-				Enter: func(ctx context.Context, instance fsm.InstanceFSM[string, int, Param], param ...Param) error {
+				EnterVariadic: func(ctx context.Context, instance fsm.InstanceFSM[string, int, Param], param ...Param) error {
 					t.Log("should not be called")
 					t.FailNow()
 					return nil
@@ -162,7 +162,7 @@ func Test_execute_force_state(t *testing.T) {
 			{
 				Name: "open",
 				Src:  []int{close}, Dst: open,
-				Enter: func(ctx context.Context, instance fsm.InstanceFSM[string, int, any], param ...any) error {
+				EnterVariadic: func(ctx context.Context, instance fsm.InstanceFSM[string, int, any], param ...any) error {
 					require.Equal(t, open, instance.Current())
 					require.NoError(t, instance.ForceState(close))
 					return nil
@@ -171,7 +171,7 @@ func Test_execute_force_state(t *testing.T) {
 			{
 				Name: "close",
 				Src:  []int{open}, Dst: close,
-				Enter: func(ctx context.Context, instance fsm.InstanceFSM[string, int, any], param ...any) error {
+				EnterVariadic: func(ctx context.Context, instance fsm.InstanceFSM[string, int, any], param ...any) error {
 					t.Log("should not be called")
 					t.FailNow()
 					return nil
@@ -200,7 +200,7 @@ func Test_execute_event_case2(t *testing.T) {
 			{
 				Name: "open",
 				Src:  []int{open, close}, Dst: open,
-				Enter: func(ctx context.Context, instance fsm.InstanceFSM[string, int, any], param ...any) error {
+				EnterVariadic: func(ctx context.Context, instance fsm.InstanceFSM[string, int, any], param ...any) error {
 					enterOpenCalledTimes++
 					return nil
 				},
@@ -208,7 +208,7 @@ func Test_execute_event_case2(t *testing.T) {
 			{
 				Name: "close",
 				Src:  []int{open}, Dst: close,
-				Enter: func(ctx context.Context, instance fsm.InstanceFSM[string, int, any], param ...any) error {
+				EnterVariadic: func(ctx context.Context, instance fsm.InstanceFSM[string, int, any], param ...any) error {
 					enterCloseCalledTimes++
 					return nil
 				},
@@ -245,7 +245,7 @@ func Test_failed_enter_OK(t *testing.T) {
 			{
 				Name: "open",
 				Src:  []int{open, close}, Dst: open,
-				Enter: func(ctx context.Context, instance fsm.InstanceFSM[string, int, any], param ...any) error {
+				EnterVariadic: func(ctx context.Context, instance fsm.InstanceFSM[string, int, any], param ...any) error {
 					enterOpenCalledTimes++
 					return nil
 				},
@@ -253,7 +253,7 @@ func Test_failed_enter_OK(t *testing.T) {
 			{
 				Name: "close",
 				Src:  []int{open}, Dst: close,
-				Enter: func(ctx context.Context, instance fsm.InstanceFSM[string, int, any], param ...any) error {
+				EnterVariadic: func(ctx context.Context, instance fsm.InstanceFSM[string, int, any], param ...any) error {
 					enterCloseCalledTimes++
 					return expectedError
 				},
@@ -272,4 +272,90 @@ func Test_failed_enter_OK(t *testing.T) {
 
 	require.Equal(t, 2, enterOpenCalledTimes)
 	require.Equal(t, 1, enterCloseCalledTimes)
+}
+
+func Test_execute_different_variadics(t *testing.T) {
+	const (
+		close int = iota
+		open
+	)
+
+	var (
+		calledOpenEnterNoParams,
+		calledOpenEnter,
+		calledOpenEnterVariadic,
+		calledCloseEnterNoParams,
+		calledCloseEnter,
+		calledCloseEnterVariadic int
+	)
+
+	machine := fsm.New(
+		close, // Initial state
+		[]fsm.Event[string, int, int]{
+			{
+				Name: "open",
+				Src:  []int{close}, Dst: open,
+				EnterNoParams: func(ctx context.Context, instance fsm.InstanceFSM[string, int, int]) error {
+					calledOpenEnterNoParams++
+					return nil
+				},
+				Enter: func(ctx context.Context, instance fsm.InstanceFSM[string, int, int], param int) error {
+					calledOpenEnter++
+					require.Equal(t, 1, param)
+					return nil
+				},
+				EnterVariadic: func(ctx context.Context, instance fsm.InstanceFSM[string, int, int], param ...int) error {
+					calledOpenEnterVariadic++
+					require.Equal(t, 2, len(param))
+					require.Equal(t, 3, param[0])
+					require.Equal(t, 4, param[1])
+					return nil
+				},
+			},
+			{
+				Name: "close",
+				Src:  []int{open}, Dst: close,
+				EnterNoParams: func(ctx context.Context, instance fsm.InstanceFSM[string, int, int]) error {
+					calledCloseEnterNoParams++
+					return nil
+				},
+				Enter: func(ctx context.Context, instance fsm.InstanceFSM[string, int, int], param int) error {
+					calledCloseEnter++
+					require.Equal(t, 2, param)
+					return nil
+				},
+				EnterVariadic: func(ctx context.Context, instance fsm.InstanceFSM[string, int, int], param ...int) error {
+					calledCloseEnterVariadic++
+					require.Equal(t, 2, len(param))
+					require.Equal(t, 5, param[0])
+					require.Equal(t, 6, param[1])
+					return nil
+				},
+			},
+		},
+	)
+
+	require.Nil(t, machine.Event(context.TODO(), "open"))
+	require.Equal(t, open, machine.Current())
+	require.Equal(t, 1, calledOpenEnterNoParams)
+
+	require.Nil(t, machine.Event(context.TODO(), "close"))
+	require.Equal(t, close, machine.Current())
+	require.Equal(t, 1, calledCloseEnterNoParams)
+
+	require.Nil(t, machine.Event(context.TODO(), "open", 1))
+	require.Equal(t, open, machine.Current())
+	require.Equal(t, 1, calledOpenEnter)
+
+	require.Nil(t, machine.Event(context.TODO(), "close", 2))
+	require.Equal(t, close, machine.Current())
+	require.Equal(t, 1, calledCloseEnter)
+
+	require.Nil(t, machine.Event(context.TODO(), "open", 3, 4))
+	require.Equal(t, open, machine.Current())
+	require.Equal(t, 1, calledOpenEnterVariadic)
+
+	require.Nil(t, machine.Event(context.TODO(), "close", 5, 6))
+	require.Equal(t, close, machine.Current())
+	require.Equal(t, 1, calledCloseEnterVariadic)
 }
