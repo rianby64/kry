@@ -38,8 +38,8 @@ type eventTransitionState[E, S, P comparable] struct {
 // the destination state, and optional callbacks that are executed when the event is triggered.
 //
 //	// Implementation notes:
-//	Enter(...)                     // if you want to execute a callback without parameters.
-//	EnterParam(..., param P)       // if you want to execute a callback with one parameter.
+//	EnterNoParams(...)             // if you want to execute a callback without parameters.
+//	Enter(..., param P)            // if you want to execute a callback with one parameter.
 //	EnterVariadic(..., param ...P) // if you want to execute a callback with multiple parameters.
 type Event[E, S, P comparable] struct {
 	Name E
