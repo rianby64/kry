@@ -30,8 +30,8 @@ func Test_set_events_string_int_ok(t *testing.T) {
 	)
 
 	machine := fsm.New(close, []fsm.Event[string, int, any]{
-		{Name: "open", Source: []int{close}, Destination: open},
-		{Name: "close", Source: []int{open}, Destination: close},
+		{Name: "open", Src: []int{close}, Dst: open},
+		{Name: "close", Src: []int{open}, Dst: close},
 	})
 
 	err := machine.Event(context.TODO(), "open")
@@ -46,8 +46,8 @@ func Test_set_events_force_state_ok(t *testing.T) {
 	)
 
 	machine := fsm.New(close, []fsm.Event[string, int, any]{
-		{Name: "open", Source: []int{close}, Destination: open},
-		{Name: "close", Source: []int{open}, Destination: close},
+		{Name: "open", Src: []int{close}, Dst: open},
+		{Name: "close", Src: []int{open}, Dst: close},
 	})
 
 	err := machine.ForceState(open)
@@ -63,8 +63,8 @@ func Test_set_events_force_incorrect_state_ok(t *testing.T) {
 	)
 
 	machine := fsm.New(close, []fsm.Event[string, int, any]{
-		{Name: "open", Source: []int{close}, Destination: open},
-		{Name: "close", Source: []int{open}, Destination: close},
+		{Name: "open", Src: []int{close}, Dst: open},
+		{Name: "close", Src: []int{open}, Dst: close},
 	})
 
 	err := machine.ForceState(incorrect)
@@ -79,8 +79,8 @@ func Test_incorrect_event(t *testing.T) {
 	)
 
 	machine := fsm.New(close, []fsm.Event[string, int, any]{
-		{Name: "open", Source: []int{close}, Destination: open},
-		{Name: "close", Source: []int{open}, Destination: close},
+		{Name: "open", Src: []int{close}, Dst: open},
+		{Name: "close", Src: []int{open}, Dst: close},
 	})
 
 	err := machine.Event(context.TODO(), "incorrect")
@@ -96,8 +96,8 @@ func Test_incorrect_state(t *testing.T) {
 	)
 
 	machine := fsm.New(close, []fsm.Event[string, int, any]{
-		{Name: "open", Source: []int{initial}, Destination: open},
-		{Name: "close", Source: []int{open}, Destination: close},
+		{Name: "open", Src: []int{initial}, Dst: open},
+		{Name: "close", Src: []int{open}, Dst: close},
 	})
 
 	err := machine.Event(context.TODO(), "open")
@@ -121,8 +121,8 @@ func Test_execute_Enter_one_time_one_parameter(t *testing.T) {
 		close, // Initial state
 		[]fsm.Event[string, int, Param]{
 			{
-				Name:   "open",
-				Source: []int{close}, Destination: open,
+				Name: "open",
+				Src:  []int{close}, Dst: open,
 				Enter: func(ctx context.Context, instance fsm.InstanceFSM[string, int, Param], param ...Param) error {
 					require.Equal(t, 1, len(param), "expected one parameter")
 					require.Equal(t, "test", param[0].Value)
@@ -133,8 +133,8 @@ func Test_execute_Enter_one_time_one_parameter(t *testing.T) {
 				},
 			},
 			{
-				Name:   "close",
-				Source: []int{open}, Destination: close,
+				Name: "close",
+				Src:  []int{open}, Dst: close,
 				Enter: func(ctx context.Context, instance fsm.InstanceFSM[string, int, Param], param ...Param) error {
 					t.Log("should not be called")
 					t.FailNow()
@@ -160,8 +160,8 @@ func Test_execute_force_state(t *testing.T) {
 		close, // Initial state
 		[]fsm.Event[string, int, any]{
 			{
-				Name:   "open",
-				Source: []int{close}, Destination: open,
+				Name: "open",
+				Src:  []int{close}, Dst: open,
 				Enter: func(ctx context.Context, instance fsm.InstanceFSM[string, int, any], param ...any) error {
 					require.Equal(t, open, instance.Current())
 					require.NoError(t, instance.ForceState(close))
@@ -169,8 +169,8 @@ func Test_execute_force_state(t *testing.T) {
 				},
 			},
 			{
-				Name:   "close",
-				Source: []int{open}, Destination: close,
+				Name: "close",
+				Src:  []int{open}, Dst: close,
 				Enter: func(ctx context.Context, instance fsm.InstanceFSM[string, int, any], param ...any) error {
 					t.Log("should not be called")
 					t.FailNow()
@@ -198,16 +198,16 @@ func Test_execute_event_case2(t *testing.T) {
 		close, // Initial state
 		[]fsm.Event[string, int, any]{
 			{
-				Name:   "open",
-				Source: []int{open, close}, Destination: open,
+				Name: "open",
+				Src:  []int{open, close}, Dst: open,
 				Enter: func(ctx context.Context, instance fsm.InstanceFSM[string, int, any], param ...any) error {
 					enterOpenCalledTimes++
 					return nil
 				},
 			},
 			{
-				Name:   "close",
-				Source: []int{open}, Destination: close,
+				Name: "close",
+				Src:  []int{open}, Dst: close,
 				Enter: func(ctx context.Context, instance fsm.InstanceFSM[string, int, any], param ...any) error {
 					enterCloseCalledTimes++
 					return nil
@@ -243,16 +243,16 @@ func Test_failed_enter_OK(t *testing.T) {
 		close, // Initial state
 		[]fsm.Event[string, int, any]{
 			{
-				Name:   "open",
-				Source: []int{open, close}, Destination: open,
+				Name: "open",
+				Src:  []int{open, close}, Dst: open,
 				Enter: func(ctx context.Context, instance fsm.InstanceFSM[string, int, any], param ...any) error {
 					enterOpenCalledTimes++
 					return nil
 				},
 			},
 			{
-				Name:   "close",
-				Source: []int{open}, Destination: close,
+				Name: "close",
+				Src:  []int{open}, Dst: close,
 				Enter: func(ctx context.Context, instance fsm.InstanceFSM[string, int, any], param ...any) error {
 					enterCloseCalledTimes++
 					return expectedError

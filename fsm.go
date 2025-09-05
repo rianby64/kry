@@ -26,16 +26,16 @@ type InstanceFSM[E, S, P comparable] interface {
 }
 
 type eventTransitionState[E, S, P comparable] struct {
-	Source      []S
-	Destination S
+	Src []S
+	Dst S
 
 	Enter func(ctx context.Context, instance InstanceFSM[E, S, P], param ...P) error
 }
 
 type Event[E, S, P comparable] struct {
-	Name        E
-	Source      []S
-	Destination S
+	Name E
+	Src  []S
+	Dst  S
 
 	Enter func(ctx context.Context, instance InstanceFSM[E, S, P], param ...P) error
 }
@@ -55,16 +55,16 @@ func New[E, S, P comparable](initialState S, events []Event[E, S, P]) *FSM[E, S,
 	mapEvents := make(map[E]eventTransitionState[E, S, P])
 	for _, event := range events {
 		mapEvents[event.Name] = eventTransitionState[E, S, P]{
-			Source:      event.Source,
-			Destination: event.Destination,
-			Enter:       event.Enter,
+			Src:   event.Src,
+			Dst:   event.Dst,
+			Enter: event.Enter,
 		}
 
-		for _, state := range event.Source {
+		for _, state := range event.Src {
 			states[state] = struct{}{}
 		}
 
-		states[event.Destination] = struct{}{}
+		states[event.Dst] = struct{}{}
 	}
 
 	f := &FSM[E, S, P]{
@@ -98,8 +98,8 @@ func (fsm *FSM[E, S, P]) Event(ctx context.Context, event E, param ...P) error {
 
 	currentState := fsm.currentState
 
-	if slices.Contains(stateTransition.Source, currentState) {
-		newState := stateTransition.Destination
+	if slices.Contains(stateTransition.Src, currentState) {
+		newState := stateTransition.Dst
 		fsm.currentState = newState
 
 		if stateTransition.Enter == nil {
