@@ -123,9 +123,8 @@ func Test_execute_Enter_one_time_one_parameter(t *testing.T) {
 			{
 				Name: "open",
 				Src:  []int{close}, Dst: open,
-				EnterVariadic: func(ctx context.Context, instance fsm.InstanceFSM[string, int, Param], param ...Param) error {
-					require.Equal(t, 1, len(param), "expected one parameter")
-					require.Equal(t, "test", param[0].Value)
+				Enter: func(ctx context.Context, instance fsm.InstanceFSM[string, int, Param], param Param) error {
+					require.Equal(t, "test", param.Value)
 					require.Equal(t, open, instance.Current())
 
 					calledEnter = true
@@ -135,7 +134,7 @@ func Test_execute_Enter_one_time_one_parameter(t *testing.T) {
 			{
 				Name: "close",
 				Src:  []int{open}, Dst: close,
-				EnterVariadic: func(ctx context.Context, instance fsm.InstanceFSM[string, int, Param], param ...Param) error {
+				Enter: func(ctx context.Context, instance fsm.InstanceFSM[string, int, Param], param Param) error {
 					t.Log("should not be called")
 					t.FailNow()
 					return nil
@@ -358,4 +357,60 @@ func Test_execute_different_variadics(t *testing.T) {
 	require.Nil(t, machine.Event(context.TODO(), "close", 5, 6))
 	require.Equal(t, close, machine.Current())
 	require.Equal(t, 1, calledCloseEnterVariadic)
+}
+
+func Test_set_state_undefined_case1(t *testing.T) {
+	const (
+		close int = iota
+		open
+	)
+
+	machine := fsm.New(close, []fsm.Event[string, int, any]{
+		{Name: "open", Src: []int{close}, Dst: open},
+		{Name: "close", Src: []int{open}, Dst: close},
+	})
+
+	err := machine.Event(context.TODO(), "open", 1)
+	require.NoError(t, err)
+	require.Equal(t, open, machine.Current())
+}
+
+func Test_set_state_undefined_case2(t *testing.T) {
+	const (
+		close int = iota
+		open
+	)
+
+	machine := fsm.New(close, []fsm.Event[string, int, any]{
+		{Name: "open", Src: []int{close}, Dst: open},
+		{Name: "close", Src: []int{open}, Dst: close},
+	})
+
+	err := machine.Event(context.TODO(), "open", 1, 2)
+	require.NoError(t, err)
+	require.Equal(t, open, machine.Current())
+}
+
+func Test_set_state_undefined_case3(t *testing.T) {
+	const (
+		close int = iota
+		open
+	)
+
+	machine := fsm.New(close, []fsm.Event[string, int, any]{
+		{
+			Name: "open", Src: []int{close}, Dst: open,
+			EnterVariadic: func(ctx context.Context, instance fsm.InstanceFSM[string, int, any], param ...any) error {
+				require.Equal(t, 1, param[0])
+				return nil
+			},
+		},
+		{
+			Name: "close", Src: []int{open}, Dst: close,
+		},
+	})
+
+	err := machine.Event(context.TODO(), "open", 1)
+	require.NoError(t, err)
+	require.Equal(t, open, machine.Current())
 }

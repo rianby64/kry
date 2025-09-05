@@ -116,12 +116,7 @@ func (fsm *FSM[E, S, P]) Event(ctx context.Context, event E, param ...P) error {
 		newState := stateTransition.Dst
 		fsm.currentState = newState
 
-		if stateTransition.EnterVariadic == nil {
-			return nil
-		}
-
-		err := fsm.switchEventByLengthParams(ctx, stateTransition, param...)
-		if err != nil {
+		if err := fsm.switchEventByLengthParams(ctx, stateTransition, param...); err != nil {
 			fsm.currentState = currentState
 
 			return fmt.Errorf("event (%v) from state(%v) enter state(%v): %w",
@@ -137,20 +132,27 @@ func (fsm *FSM[E, S, P]) Event(ctx context.Context, event E, param ...P) error {
 func (fsm *FSM[E, S, P]) switchEventByLengthParams(ctx context.Context, stateTransition eventTransitionState[E, S, P], param ...P) error {
 	switch len(param) {
 	case 0:
-		if stateTransition.EnterNoParams == nil {
+		if stateTransition.EnterNoParams != nil {
+			return stateTransition.EnterNoParams(ctx, fsm)
+		}
+
+		if stateTransition.EnterVariadic != nil {
 			return stateTransition.EnterVariadic(ctx, fsm)
 		}
 
-		return stateTransition.EnterNoParams(ctx, fsm)
-
 	case 1:
-		if stateTransition.Enter == nil {
-			return stateTransition.EnterVariadic(ctx, fsm, param...)
+		if stateTransition.Enter != nil {
+			return stateTransition.Enter(ctx, fsm, param[0])
 		}
 
-		return stateTransition.Enter(ctx, fsm, param[0])
+		if stateTransition.EnterVariadic != nil {
+			return stateTransition.EnterVariadic(ctx, fsm, param...)
+		}
+	}
 
-	default:
+	if stateTransition.EnterVariadic != nil {
 		return stateTransition.EnterVariadic(ctx, fsm, param...)
 	}
+
+	return nil
 }
