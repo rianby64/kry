@@ -1,6 +1,10 @@
+<div style="text-align:center"><img src="https://github.com/rianby64/kry/blob/kry-doc/icon.png?raw=true" /></div>
+
 # kry
 
-A simple Go project for finite state machines (FSM).
+A simple Go project for finite state machines (FSM). I got inspiration by my wife Kry. I really love her!
+
+Thank you for using my code. Kry will be very happy if you like it.
 
 ## Overview
 
@@ -9,6 +13,7 @@ A simple Go project for finite state machines (FSM).
 ## Getting Started
 
 1. Install the package:
+
 ```sh
 go get github.com/rianby64/kry
 ```
