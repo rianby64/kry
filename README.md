@@ -1,4 +1,4 @@
-<div style="text-align:center"><img src="https://github.com/rianby64/kry/blob/kry-doc/icon.png?raw=true" /></div>
+<div style="text-align:center"><img src="https://github.com/rianby64/kry/blob/main/icon.png?raw=true" /></div>
 
 # kry
 
