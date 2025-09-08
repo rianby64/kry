@@ -136,17 +136,9 @@ func (fsm *FSM[E, S, P]) switchEventByLengthParams(ctx context.Context, stateTra
 			return stateTransition.EnterNoParams(ctx, fsm)
 		}
 
-		if stateTransition.EnterVariadic != nil {
-			return stateTransition.EnterVariadic(ctx, fsm)
-		}
-
 	case 1:
 		if stateTransition.Enter != nil {
 			return stateTransition.Enter(ctx, fsm, param[0])
-		}
-
-		if stateTransition.EnterVariadic != nil {
-			return stateTransition.EnterVariadic(ctx, fsm, param...)
 		}
 	}
 
