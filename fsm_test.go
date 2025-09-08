@@ -10,14 +10,14 @@ import (
 )
 
 func Test_set_initialState_string_ok(t *testing.T) {
-	machine := fsm.New("INITIAL_STATE", []fsm.Event[string, string, any]{})
+	machine := fsm.New("INITIAL_STATE", []fsm.Action[string, string, any]{})
 
 	require.NotNil(t, machine)
 	require.Equal(t, "INITIAL_STATE", machine.Current())
 }
 
 func Test_set_initialState_int_ok(t *testing.T) {
-	machine := fsm.New(1, []fsm.Event[string, int, any]{})
+	machine := fsm.New(1, []fsm.Action[string, int, any]{})
 
 	require.NotNil(t, machine)
 	require.Equal(t, 1, machine.Current())
@@ -29,12 +29,12 @@ func Test_set_events_string_int_ok(t *testing.T) {
 		open
 	)
 
-	machine := fsm.New(close, []fsm.Event[string, int, any]{
+	machine := fsm.New(close, []fsm.Action[string, int, any]{
 		{Name: "open", Src: []int{close}, Dst: open},
 		{Name: "close", Src: []int{open}, Dst: close},
 	})
 
-	err := machine.Event(context.TODO(), "open")
+	err := machine.Apply(context.TODO(), "open", open)
 	require.NoError(t, err)
 	require.Equal(t, open, machine.Current())
 }
@@ -45,7 +45,7 @@ func Test_set_events_force_state_ok(t *testing.T) {
 		open
 	)
 
-	machine := fsm.New(close, []fsm.Event[string, int, any]{
+	machine := fsm.New(close, []fsm.Action[string, int, any]{
 		{Name: "open", Src: []int{close}, Dst: open},
 		{Name: "close", Src: []int{open}, Dst: close},
 	})
@@ -62,7 +62,7 @@ func Test_set_events_force_incorrect_state_ok(t *testing.T) {
 		incorrect
 	)
 
-	machine := fsm.New(close, []fsm.Event[string, int, any]{
+	machine := fsm.New(close, []fsm.Action[string, int, any]{
 		{Name: "open", Src: []int{close}, Dst: open},
 		{Name: "close", Src: []int{open}, Dst: close},
 	})
@@ -78,12 +78,12 @@ func Test_incorrect_event(t *testing.T) {
 		open
 	)
 
-	machine := fsm.New(close, []fsm.Event[string, int, any]{
+	machine := fsm.New(close, []fsm.Action[string, int, any]{
 		{Name: "open", Src: []int{close}, Dst: open},
 		{Name: "close", Src: []int{open}, Dst: close},
 	})
 
-	err := machine.Event(context.TODO(), "incorrect")
+	err := machine.Apply(context.TODO(), "incorrect", open)
 	require.ErrorIs(t, err, fsm.ErrUnknown)
 	require.Equal(t, close, machine.Current())
 }
@@ -95,12 +95,12 @@ func Test_incorrect_state(t *testing.T) {
 		initial
 	)
 
-	machine := fsm.New(close, []fsm.Event[string, int, any]{
+	machine := fsm.New(close, []fsm.Action[string, int, any]{
 		{Name: "open", Src: []int{initial}, Dst: open},
 		{Name: "close", Src: []int{open}, Dst: close},
 	})
 
-	err := machine.Event(context.TODO(), "open")
+	err := machine.Apply(context.TODO(), "open", open)
 	require.ErrorIs(t, err, fsm.ErrNotFound)
 	require.Equal(t, close, machine.Current())
 }
@@ -119,7 +119,7 @@ func Test_execute_Enter_one_time_one_parameter(t *testing.T) {
 
 	machine := fsm.New(
 		close, // Initial state
-		[]fsm.Event[string, int, Param]{
+		[]fsm.Action[string, int, Param]{
 			{
 				Name: "open",
 				Src:  []int{close}, Dst: open,
@@ -143,7 +143,7 @@ func Test_execute_Enter_one_time_one_parameter(t *testing.T) {
 		},
 	)
 
-	err := machine.Event(context.TODO(), "open", Param{Value: "test"})
+	err := machine.Apply(context.TODO(), "open", open, Param{Value: "test"})
 	require.Nil(t, err)
 	require.Equal(t, open, machine.Current())
 	require.True(t, calledEnter)
@@ -157,7 +157,7 @@ func Test_execute_force_state(t *testing.T) {
 
 	machine := fsm.New(
 		close, // Initial state
-		[]fsm.Event[string, int, any]{
+		[]fsm.Action[string, int, any]{
 			{
 				Name: "open",
 				Src:  []int{close}, Dst: open,
@@ -179,7 +179,7 @@ func Test_execute_force_state(t *testing.T) {
 		},
 	)
 
-	err := machine.Event(context.TODO(), "open")
+	err := machine.Apply(context.TODO(), "open", open)
 	require.Nil(t, err)
 	require.Equal(t, close, machine.Current())
 }
@@ -195,7 +195,7 @@ func Test_execute_event_case2(t *testing.T) {
 
 	machine := fsm.New(
 		close, // Initial state
-		[]fsm.Event[string, int, any]{
+		[]fsm.Action[string, int, any]{
 			{
 				Name: "open",
 				Src:  []int{open, close}, Dst: open,
@@ -215,13 +215,13 @@ func Test_execute_event_case2(t *testing.T) {
 		},
 	)
 
-	require.Nil(t, machine.Event(context.TODO(), "open"))
+	require.Nil(t, machine.Apply(context.TODO(), "open", open))
 	require.Equal(t, open, machine.Current())
 
-	require.Nil(t, machine.Event(context.TODO(), "open"))
+	require.Nil(t, machine.Apply(context.TODO(), "open", open))
 	require.Equal(t, open, machine.Current())
 
-	require.Nil(t, machine.Event(context.TODO(), "close"))
+	require.Nil(t, machine.Apply(context.TODO(), "close", close))
 	require.Equal(t, close, machine.Current())
 
 	require.Equal(t, 2, enterOpenCalledTimes)
@@ -240,7 +240,7 @@ func Test_failed_enter_OK(t *testing.T) {
 
 	machine := fsm.New(
 		close, // Initial state
-		[]fsm.Event[string, int, any]{
+		[]fsm.Action[string, int, any]{
 			{
 				Name: "open",
 				Src:  []int{open, close}, Dst: open,
@@ -260,13 +260,13 @@ func Test_failed_enter_OK(t *testing.T) {
 		},
 	)
 
-	require.Nil(t, machine.Event(context.TODO(), "open"))
+	require.Nil(t, machine.Apply(context.TODO(), "open", open))
 	require.Equal(t, open, machine.Current())
 
-	require.Nil(t, machine.Event(context.TODO(), "open"))
+	require.Nil(t, machine.Apply(context.TODO(), "open", open))
 	require.Equal(t, open, machine.Current())
 
-	require.ErrorIs(t, machine.Event(context.TODO(), "close"), expectedError)
+	require.ErrorIs(t, machine.Apply(context.TODO(), "close", close), expectedError)
 	require.Equal(t, open, machine.Current())
 
 	require.Equal(t, 2, enterOpenCalledTimes)
@@ -290,7 +290,7 @@ func Test_execute_different_variadics(t *testing.T) {
 
 	machine := fsm.New(
 		close, // Initial state
-		[]fsm.Event[string, int, int]{
+		[]fsm.Action[string, int, int]{
 			{
 				Name: "open",
 				Src:  []int{close}, Dst: open,
@@ -334,27 +334,27 @@ func Test_execute_different_variadics(t *testing.T) {
 		},
 	)
 
-	require.Nil(t, machine.Event(context.TODO(), "open"))
+	require.Nil(t, machine.Apply(context.TODO(), "open", open))
 	require.Equal(t, open, machine.Current())
 	require.Equal(t, 1, calledOpenEnterNoParams)
 
-	require.Nil(t, machine.Event(context.TODO(), "close"))
+	require.Nil(t, machine.Apply(context.TODO(), "close", close))
 	require.Equal(t, close, machine.Current())
 	require.Equal(t, 1, calledCloseEnterNoParams)
 
-	require.Nil(t, machine.Event(context.TODO(), "open", 1))
+	require.Nil(t, machine.Apply(context.TODO(), "open", open, 1))
 	require.Equal(t, open, machine.Current())
 	require.Equal(t, 1, calledOpenEnter)
 
-	require.Nil(t, machine.Event(context.TODO(), "close", 2))
+	require.Nil(t, machine.Apply(context.TODO(), "close", close, 2))
 	require.Equal(t, close, machine.Current())
 	require.Equal(t, 1, calledCloseEnter)
 
-	require.Nil(t, machine.Event(context.TODO(), "open", 3, 4))
+	require.Nil(t, machine.Apply(context.TODO(), "open", open, 3, 4))
 	require.Equal(t, open, machine.Current())
 	require.Equal(t, 1, calledOpenEnterVariadic)
 
-	require.Nil(t, machine.Event(context.TODO(), "close", 5, 6))
+	require.Nil(t, machine.Apply(context.TODO(), "close", close, 5, 6))
 	require.Equal(t, close, machine.Current())
 	require.Equal(t, 1, calledCloseEnterVariadic)
 }
@@ -365,12 +365,12 @@ func Test_set_state_undefined_case1(t *testing.T) {
 		open
 	)
 
-	machine := fsm.New(close, []fsm.Event[string, int, any]{
+	machine := fsm.New(close, []fsm.Action[string, int, any]{
 		{Name: "open", Src: []int{close}, Dst: open},
 		{Name: "close", Src: []int{open}, Dst: close},
 	})
 
-	err := machine.Event(context.TODO(), "open", 1)
+	err := machine.Apply(context.TODO(), "open", 1)
 	require.NoError(t, err)
 	require.Equal(t, open, machine.Current())
 }
@@ -381,12 +381,12 @@ func Test_set_state_undefined_case2(t *testing.T) {
 		open
 	)
 
-	machine := fsm.New(close, []fsm.Event[string, int, any]{
+	machine := fsm.New(close, []fsm.Action[string, int, any]{
 		{Name: "open", Src: []int{close}, Dst: open},
 		{Name: "close", Src: []int{open}, Dst: close},
 	})
 
-	err := machine.Event(context.TODO(), "open", 1, 2)
+	err := machine.Apply(context.TODO(), "open", 1, 2)
 	require.NoError(t, err)
 	require.Equal(t, open, machine.Current())
 }
@@ -397,7 +397,7 @@ func Test_set_state_undefined_case3(t *testing.T) {
 		open
 	)
 
-	machine := fsm.New(close, []fsm.Event[string, int, any]{
+	machine := fsm.New(close, []fsm.Action[string, int, any]{
 		{
 			Name: "open", Src: []int{close}, Dst: open,
 			EnterVariadic: func(ctx context.Context, instance fsm.InstanceFSM[string, int, any], param ...any) error {
@@ -410,7 +410,61 @@ func Test_set_state_undefined_case3(t *testing.T) {
 		},
 	})
 
-	err := machine.Event(context.TODO(), "open", 1)
+	err := machine.Apply(context.TODO(), "open", open, 1)
 	require.NoError(t, err)
 	require.Equal(t, open, machine.Current())
+}
+
+func Test_set_events_retrigger_ok(t *testing.T) {
+	const (
+		close int = iota
+		roger
+		open
+	)
+
+	var (
+		calledOpen,
+		calledReopen,
+		calledClose int
+	)
+
+	machine := fsm.New(close, []fsm.Action[string, int, any]{
+		{
+			Name: "open", Src: []int{close, open}, Dst: roger,
+			EnterNoParams: func(ctx context.Context, instance fsm.InstanceFSM[string, int, any]) error {
+				calledOpen++
+				return nil
+			},
+		},
+		{
+			Name: "open", Src: []int{roger}, Dst: open,
+			EnterNoParams: func(ctx context.Context, instance fsm.InstanceFSM[string, int, any]) error {
+				calledReopen++
+				return nil
+			},
+		},
+		{
+			Name: "close", Src: []int{roger, open}, Dst: close,
+			EnterNoParams: func(ctx context.Context, instance fsm.InstanceFSM[string, int, any]) error {
+				calledClose++
+				return nil
+			},
+		},
+	})
+
+	require.NoError(t, machine.Apply(context.TODO(), "open", roger))
+	require.Equal(t, roger, machine.Current())
+
+	require.NoError(t, machine.Apply(context.TODO(), "open", open))
+	require.Equal(t, open, machine.Current())
+
+	require.NoError(t, machine.Apply(context.TODO(), "open", roger))
+	require.Equal(t, roger, machine.Current())
+
+	require.NoError(t, machine.Apply(context.TODO(), "close", close))
+	require.Equal(t, close, machine.Current())
+
+	require.Equal(t, 2, calledOpen)
+	require.Equal(t, 1, calledReopen)
+	require.Equal(t, 1, calledClose)
 }
