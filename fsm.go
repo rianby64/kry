@@ -45,7 +45,7 @@ type Transition[Action, State, Param comparable] struct {
 	EnterVariadic func(ctx context.Context, instance InstanceFSM[Action, State, Param], param ...Param) error
 }
 
-type FSK[Action, State, Param comparable] struct {
+type FSM[Action, State, Param comparable] struct {
 	currentState State
 	states       map[State]struct{}
 	path         map[Action]map[State]map[State]callbacks[Action, State, Param]
@@ -57,7 +57,7 @@ type FSK[Action, State, Param comparable] struct {
 func New[Action, State, Param comparable](
 	initialState State,
 	transitions []Transition[Action, State, Param],
-) (*FSK[Action, State, Param], error) {
+) (*FSM[Action, State, Param], error) {
 	path := make(map[Action]map[State]map[State]callbacks[Action, State, Param])
 	states := map[State]struct{}{
 		initialState: {},
@@ -108,7 +108,7 @@ func New[Action, State, Param comparable](
 		events = nil
 	}
 
-	return &FSK[Action, State, Param]{
+	return &FSM[Action, State, Param]{
 		currentState: initialState,
 		path:         path,
 		states:       states,
@@ -118,11 +118,11 @@ func New[Action, State, Param comparable](
 	}, nil
 }
 
-func (fsk *FSK[Action, State, Param]) Current() State {
+func (fsk *FSM[Action, State, Param]) Current() State {
 	return fsk.currentState
 }
 
-func (fsk *FSK[Action, State, Param]) ForceState(state State) error {
+func (fsk *FSM[Action, State, Param]) ForceState(state State) error {
 	_, ok := fsk.states[state]
 	if !ok {
 		return fmt.Errorf("state %w: %v", ErrUnknown, state)
@@ -133,7 +133,7 @@ func (fsk *FSK[Action, State, Param]) ForceState(state State) error {
 	return nil
 }
 
-func (fsk *FSK[Action, State, Param]) Event(ctx context.Context, action Action, param ...Param) error {
+func (fsk *FSM[Action, State, Param]) Event(ctx context.Context, action Action, param ...Param) error {
 	if !fsk.canTriggerEvents {
 		return fmt.Errorf("event %v: %w", action, ErrNotAllowed)
 	}
@@ -152,7 +152,7 @@ func (fsk *FSK[Action, State, Param]) Event(ctx context.Context, action Action, 
 	return nil
 }
 
-func (fsk *FSK[Action, State, Param]) Apply(ctx context.Context, action Action, newState State, param ...Param) error {
+func (fsk *FSM[Action, State, Param]) Apply(ctx context.Context, action Action, newState State, param ...Param) error {
 	currentState := fsk.currentState
 	foundAction, ok := fsk.path[action]
 	if !ok {
@@ -179,7 +179,7 @@ func (fsk *FSK[Action, State, Param]) Apply(ctx context.Context, action Action, 
 	return fmt.Errorf("transition (%v) from state %w: %v", action, ErrNotFound, currentState)
 }
 
-func (fsk *FSK[Action, State, Param]) switchEventByLengthParams(ctx context.Context, stateTransition callbacks[Action, State, Param], param ...Param) error {
+func (fsk *FSM[Action, State, Param]) switchEventByLengthParams(ctx context.Context, stateTransition callbacks[Action, State, Param], param ...Param) error {
 	switch len(param) {
 	case 0:
 		if stateTransition.EnterNoParams != nil {
