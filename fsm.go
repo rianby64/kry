@@ -15,6 +15,8 @@ const (
 	ErrUnknown  errString = "unknown"
 	ErrNotFound errString = "not found"
 	ErrRepeated errString = "already exists"
+
+	ErrNotAllowed errString = "not allowed"
 )
 
 type InstanceFSM[Action, State, Param comparable] interface {
@@ -47,6 +49,9 @@ type FSK[Action, State, Param comparable] struct {
 	currentState State
 	states       map[State]struct{}
 	path         map[Action]map[State]map[State]callbacks[Action, State, Param]
+
+	events           map[Action]Transition[Action, State, Param]
+	canTriggerEvents bool
 }
 
 func New[Action, State, Param comparable](
@@ -57,11 +62,17 @@ func New[Action, State, Param comparable](
 	states := map[State]struct{}{
 		initialState: {},
 	}
+	canTriggerEvents := true
+	events := make(map[Action]Transition[Action, State, Param])
 
 	for _, transition := range transitions {
 		action := transition.Name
 		if _, ok := path[action]; !ok {
 			path[action] = make(map[State]map[State]callbacks[Action, State, Param])
+		}
+
+		if _, ok := events[action]; ok {
+			canTriggerEvents = false
 		}
 
 		dst := transition.Dst
@@ -89,13 +100,21 @@ func New[Action, State, Param comparable](
 			states[state] = struct{}{}
 		}
 
+		events[action] = transition
 		states[transition.Dst] = struct{}{}
+	}
+
+	if !canTriggerEvents {
+		events = nil
 	}
 
 	return &FSK[Action, State, Param]{
 		currentState: initialState,
 		path:         path,
 		states:       states,
+
+		events:           events,
+		canTriggerEvents: canTriggerEvents,
 	}, nil
 }
 
@@ -110,6 +129,25 @@ func (fsk *FSK[Action, State, Param]) ForceState(state State) error {
 	}
 
 	fsk.currentState = state
+
+	return nil
+}
+
+func (fsk *FSK[Action, State, Param]) Event(ctx context.Context, action Action, param ...Param) error {
+	if !fsk.canTriggerEvents {
+		return fmt.Errorf("event %v: %w", action, ErrNotAllowed)
+	}
+
+	foundEvent, ok := fsk.events[action]
+	if !ok {
+		return fmt.Errorf("event %w: %v", ErrUnknown, action)
+	}
+
+	newState := foundEvent.Dst
+
+	if err := fsk.Apply(ctx, action, newState, param...); err != nil {
+		return fmt.Errorf("failed to apply event %v: %w", action, err)
+	}
 
 	return nil
 }

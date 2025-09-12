@@ -23,7 +23,7 @@ func Test_set_initialState_int_ok(t *testing.T) {
 	require.Equal(t, 1, machine.Current())
 }
 
-func Test_set_events_string_int_ok(t *testing.T) {
+func Test_set_transitions_string_int_ok(t *testing.T) {
 	const (
 		close int = iota
 		open
@@ -34,12 +34,11 @@ func Test_set_events_string_int_ok(t *testing.T) {
 		{Name: "close", Src: []int{open}, Dst: close},
 	})
 
-	err := machine.Apply(context.TODO(), "open", open)
-	require.NoError(t, err)
+	require.NoError(t, machine.Apply(context.TODO(), "open", open))
 	require.Equal(t, open, machine.Current())
 }
 
-func Test_set_events_force_state_ok(t *testing.T) {
+func Test_set_transitions_force_state_ok(t *testing.T) {
 	const (
 		close int = iota
 		open
@@ -50,12 +49,11 @@ func Test_set_events_force_state_ok(t *testing.T) {
 		{Name: "close", Src: []int{open}, Dst: close},
 	})
 
-	err := machine.ForceState(open)
-	require.NoError(t, err)
+	require.NoError(t, machine.ForceState(open))
 	require.Equal(t, open, machine.Current())
 }
 
-func Test_set_events_force_incorrect_state_ok(t *testing.T) {
+func Test_set_transitions_force_incorrect_state_ok(t *testing.T) {
 	const (
 		close int = iota
 		open
@@ -67,8 +65,7 @@ func Test_set_events_force_incorrect_state_ok(t *testing.T) {
 		{Name: "close", Src: []int{open}, Dst: close},
 	})
 
-	err := machine.ForceState(incorrect)
-	require.ErrorIs(t, err, fsm.ErrUnknown)
+	require.ErrorIs(t, machine.ForceState(incorrect), fsm.ErrUnknown)
 	require.Equal(t, close, machine.Current())
 }
 
@@ -83,8 +80,7 @@ func Test_incorrect_event(t *testing.T) {
 		{Name: "close", Src: []int{open}, Dst: close},
 	})
 
-	err := machine.Apply(context.TODO(), "incorrect", open)
-	require.ErrorIs(t, err, fsm.ErrUnknown)
+	require.ErrorIs(t, machine.Apply(context.TODO(), "incorrect", open), fsm.ErrUnknown)
 	require.Equal(t, close, machine.Current())
 }
 
@@ -100,8 +96,7 @@ func Test_incorrect_state(t *testing.T) {
 		{Name: "close", Src: []int{open}, Dst: close},
 	})
 
-	err := machine.Apply(context.TODO(), "open", open)
-	require.ErrorIs(t, err, fsm.ErrNotFound)
+	require.ErrorIs(t, machine.Apply(context.TODO(), "open", open), fsm.ErrNotFound)
 	require.Equal(t, close, machine.Current())
 }
 
@@ -143,8 +138,7 @@ func Test_execute_Enter_one_time_one_parameter(t *testing.T) {
 		},
 	)
 
-	err := machine.Apply(context.TODO(), "open", open, Param{Value: "test"})
-	require.Nil(t, err)
+	require.Nil(t, machine.Apply(context.TODO(), "open", open, Param{Value: "test"}))
 	require.Equal(t, open, machine.Current())
 	require.True(t, calledEnter)
 }
@@ -179,8 +173,7 @@ func Test_execute_force_state(t *testing.T) {
 		},
 	)
 
-	err := machine.Apply(context.TODO(), "open", open)
-	require.Nil(t, err)
+	require.Nil(t, machine.Apply(context.TODO(), "open", open))
 	require.Equal(t, close, machine.Current())
 }
 
@@ -386,8 +379,7 @@ func Test_set_state_undefined_case2(t *testing.T) {
 		{Name: "close", Src: []int{open}, Dst: close},
 	})
 
-	err := machine.Apply(context.TODO(), "open", 1, 2)
-	require.NoError(t, err)
+	require.NoError(t, machine.Apply(context.TODO(), "open", 1, 2))
 	require.Equal(t, open, machine.Current())
 }
 
@@ -410,12 +402,11 @@ func Test_set_state_undefined_case3(t *testing.T) {
 		},
 	})
 
-	err := machine.Apply(context.TODO(), "open", open, 1)
-	require.NoError(t, err)
+	require.NoError(t, machine.Apply(context.TODO(), "open", open, 1))
 	require.Equal(t, open, machine.Current())
 }
 
-func Test_set_events_retrigger_ok(t *testing.T) {
+func Test_set_transitions_retrigger_ok(t *testing.T) {
 	const (
 		close int = iota
 		roger
@@ -451,6 +442,8 @@ func Test_set_events_retrigger_ok(t *testing.T) {
 			},
 		},
 	})
+
+	require.ErrorIs(t, machine.Event(context.TODO(), "open"), fsm.ErrNotAllowed)
 
 	require.NoError(t, machine.Apply(context.TODO(), "open", roger))
 	require.Equal(t, roger, machine.Current())
@@ -490,4 +483,62 @@ func Test_set_repeated_transitions_panic(t *testing.T) {
 
 	require.Nil(t, machine)
 	require.ErrorIs(t, err, fsm.ErrRepeated)
+}
+
+func Test_set_event_ok(t *testing.T) {
+	const (
+		close int = iota
+		open
+	)
+
+	machine, err := fsm.New(close, []fsm.Transition[string, int, any]{
+		{
+			Name: "open", Src: []int{close}, Dst: open,
+		},
+		{
+			Name: "close", Src: []int{open}, Dst: close,
+		},
+	})
+
+	require.NotNil(t, machine)
+	require.NoError(t, err)
+
+	require.NoError(t, machine.Event(context.TODO(), "open"))
+	require.Equal(t, open, machine.Current())
+
+	require.NoError(t, machine.Event(context.TODO(), "close"))
+	require.Equal(t, close, machine.Current())
+}
+
+func Test_transite_incorrect_event_ok(t *testing.T) {
+	const (
+		close int = iota
+		open
+	)
+
+	errExpected := errors.New("expected error")
+
+	machine, err := fsm.New(close, []fsm.Transition[string, int, any]{
+		{
+			Name: "open", Src: []int{close}, Dst: open,
+		},
+		{
+			Name: "close", Src: []int{open}, Dst: close,
+			EnterNoParams: func(ctx context.Context, instance fsm.InstanceFSM[string, int, any]) error {
+				return errExpected
+			},
+		},
+	})
+
+	require.NotNil(t, machine)
+	require.NoError(t, err)
+
+	require.NoError(t, machine.Event(context.TODO(), "open"))
+	require.Equal(t, open, machine.Current())
+
+	require.ErrorIs(t, machine.Event(context.TODO(), "incorrect"), fsm.ErrUnknown)
+	require.Equal(t, open, machine.Current())
+
+	require.ErrorIs(t, machine.Event(context.TODO(), "close"), errExpected)
+	require.Equal(t, open, machine.Current())
 }
