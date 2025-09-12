@@ -14,128 +14,123 @@ func (e errString) Error() string {
 const (
 	ErrUnknown  errString = "unknown"
 	ErrNotFound errString = "not found"
+	ErrRepeated errString = "already exists"
 )
 
-type InstanceFSM[E, S, P comparable] interface {
-	Current() S
+type InstanceFSM[Action, State, Param comparable] interface {
+	Current() State
 
 	// Event(ctx context.Context, event E, param ...P) error // TODO: ask why this method should be here. If YES, then I've to deal with infinity loops
 
-	ForceState(state S) error
+	ForceState(state State) error
 }
 
-type eventTransitionState[E, S, P comparable] struct {
-	Src []S
-	Dst S
-
-	EnterNoParams func(ctx context.Context, instance InstanceFSM[E, S, P]) error
-	Enter         func(ctx context.Context, instance InstanceFSM[E, S, P], param P) error
-	EnterVariadic func(ctx context.Context, instance InstanceFSM[E, S, P], param ...P) error
+type callbacks[Action, State, Param comparable] struct {
+	EnterNoParams func(ctx context.Context, instance InstanceFSM[Action, State, Param]) error
+	Enter         func(ctx context.Context, instance InstanceFSM[Action, State, Param], param Param) error
+	EnterVariadic func(ctx context.Context, instance InstanceFSM[Action, State, Param], param ...Param) error
 }
 
-type callbacks[E, S, P comparable] struct {
-	EnterNoParams func(ctx context.Context, instance InstanceFSM[E, S, P]) error
-	Enter         func(ctx context.Context, instance InstanceFSM[E, S, P], param P) error
-	EnterVariadic func(ctx context.Context, instance InstanceFSM[E, S, P], param ...P) error
+// Transition contains the name of the action, the source states, the destination state,
+// and optional callbacks that are executed when the action is triggered.
+type Transition[Action, State, Param comparable] struct {
+	Name Action
+	Src  []State
+	Dst  State
+
+	EnterNoParams func(ctx context.Context, instance InstanceFSM[Action, State, Param]) error
+	Enter         func(ctx context.Context, instance InstanceFSM[Action, State, Param], param Param) error
+	EnterVariadic func(ctx context.Context, instance InstanceFSM[Action, State, Param], param ...Param) error
 }
 
-// Action describes a transition. It contains the name of the action, the source states,
-// the destination state, and optional callbacks that are executed when the action is triggered.
-//
-//	// Implementation notes:
-//	EnterNoParams(...)             // if you want to execute a callback without parameters.
-//	Enter(..., param P)            // if you want to execute a callback with one parameter.
-//	EnterVariadic(..., param ...P) // if you want to execute a callback with multiple parameters.
-type Action[E, S, P comparable] struct {
-	Name E
-	Src  []S
-	Dst  S
-
-	EnterNoParams func(ctx context.Context, instance InstanceFSM[E, S, P]) error
-	Enter         func(ctx context.Context, instance InstanceFSM[E, S, P], param P) error
-	EnterVariadic func(ctx context.Context, instance InstanceFSM[E, S, P], param ...P) error
+type FSK[Action, State, Param comparable] struct {
+	currentState State
+	states       map[State]struct{}
+	path         map[Action]map[State]map[State]callbacks[Action, State, Param]
 }
 
-type FSM[E, S, P comparable] struct {
-	currentState S
-	states       map[S]struct{}
-	path         map[E]map[S]map[S]callbacks[E, S, P]
-}
-
-func New[E, S, P comparable](initialState S, events []Action[E, S, P]) *FSM[E, S, P] {
-	path := make(map[E]map[S]map[S]callbacks[E, S, P])
-	states := map[S]struct{}{
+func New[Action, State, Param comparable](
+	initialState State,
+	transitions []Transition[Action, State, Param],
+) (*FSK[Action, State, Param], error) {
+	path := make(map[Action]map[State]map[State]callbacks[Action, State, Param])
+	states := map[State]struct{}{
 		initialState: {},
 	}
 
-	for _, event := range events {
-		if _, ok := path[event.Name]; !ok {
-			path[event.Name] = make(map[S]map[S]callbacks[E, S, P])
+	for _, transition := range transitions {
+		action := transition.Name
+		if _, ok := path[action]; !ok {
+			path[action] = make(map[State]map[State]callbacks[Action, State, Param])
 		}
 
-		for _, srtState := range event.Src {
-			if _, ok := path[event.Name][srtState]; !ok {
-				path[event.Name][srtState] = make(map[S]callbacks[E, S, P])
+		dst := transition.Dst
+
+		for _, src := range transition.Src {
+			if _, ok := path[action][src]; !ok {
+				path[action][src] = make(map[State]callbacks[Action, State, Param])
 			}
 
-			if _, ok := path[event.Name][srtState][event.Dst]; ok {
-				panic(fmt.Sprintf("event %v from state %v to state %v already exists", event.Name, srtState, event.Dst))
+			if _, ok := path[action][src][dst]; ok {
+				return nil, fmt.Errorf(
+					"action %v from state %v to state %v: %w",
+					action, src, dst, ErrRepeated,
+				)
 			}
 
-			path[event.Name][srtState][event.Dst] = callbacks[E, S, P]{
-				EnterVariadic: event.EnterVariadic,
-				Enter:         event.Enter,
-				EnterNoParams: event.EnterNoParams,
+			path[action][src][dst] = callbacks[Action, State, Param]{
+				EnterVariadic: transition.EnterVariadic,
+				Enter:         transition.Enter,
+				EnterNoParams: transition.EnterNoParams,
 			}
 		}
 
-		for _, state := range event.Src {
+		for _, state := range transition.Src {
 			states[state] = struct{}{}
 		}
 
-		states[event.Dst] = struct{}{}
+		states[transition.Dst] = struct{}{}
 	}
 
-	f := &FSM[E, S, P]{
+	return &FSK[Action, State, Param]{
 		currentState: initialState,
 		path:         path,
 		states:       states,
-	}
-
-	return f
+	}, nil
 }
 
-func (fsm *FSM[E, S, P]) Current() S {
-	return fsm.currentState
+func (fsk *FSK[Action, State, Param]) Current() State {
+	return fsk.currentState
 }
 
-func (fsm *FSM[E, S, P]) ForceState(state S) error {
-	if _, ok := fsm.states[state]; !ok {
+func (fsk *FSK[Action, State, Param]) ForceState(state State) error {
+	_, ok := fsk.states[state]
+	if !ok {
 		return fmt.Errorf("state %w: %v", ErrUnknown, state)
 	}
 
-	fsm.currentState = state
+	fsk.currentState = state
 
 	return nil
 }
 
-func (fsm *FSM[E, S, P]) Apply(ctx context.Context, action E, newState S, param ...P) error {
-	currentState := fsm.currentState
-	foundEvent, ok := fsm.path[action]
+func (fsk *FSK[Action, State, Param]) Apply(ctx context.Context, action Action, newState State, param ...Param) error {
+	currentState := fsk.currentState
+	foundAction, ok := fsk.path[action]
 	if !ok {
-		return fmt.Errorf("event %w: %v", ErrUnknown, action)
+		return fmt.Errorf("action %w: %v", ErrUnknown, action)
 	}
 
-	foundSrcState, ok := foundEvent[currentState]
+	foundSrcState, ok := foundAction[currentState]
 	if ok {
 		callbacks, ok := foundSrcState[newState]
 		if ok {
-			fsm.currentState = newState
+			fsk.currentState = newState
 
-			if err := fsm.switchEventByLengthParams(ctx, callbacks, param...); err != nil {
-				fsm.currentState = currentState
+			if err := fsk.switchEventByLengthParams(ctx, callbacks, param...); err != nil {
+				fsk.currentState = currentState
 
-				return fmt.Errorf("event (%v) from state(%v) enter state(%v): %w",
+				return fmt.Errorf("failed to apply (%v) from %v to %v: %w",
 					action, currentState, newState, err)
 			}
 
@@ -143,24 +138,24 @@ func (fsm *FSM[E, S, P]) Apply(ctx context.Context, action E, newState S, param 
 		}
 	}
 
-	return fmt.Errorf("event (%v) state transition %w: %v", action, ErrNotFound, currentState)
+	return fmt.Errorf("transition (%v) from state %w: %v", action, ErrNotFound, currentState)
 }
 
-func (fsm *FSM[E, S, P]) switchEventByLengthParams(ctx context.Context, stateTransition callbacks[E, S, P], param ...P) error {
+func (fsk *FSK[Action, State, Param]) switchEventByLengthParams(ctx context.Context, stateTransition callbacks[Action, State, Param], param ...Param) error {
 	switch len(param) {
 	case 0:
 		if stateTransition.EnterNoParams != nil {
-			return stateTransition.EnterNoParams(ctx, fsm)
+			return stateTransition.EnterNoParams(ctx, fsk)
 		}
 
 	case 1:
 		if stateTransition.Enter != nil {
-			return stateTransition.Enter(ctx, fsm, param[0])
+			return stateTransition.Enter(ctx, fsk, param[0])
 		}
 	}
 
 	if stateTransition.EnterVariadic != nil {
-		return stateTransition.EnterVariadic(ctx, fsm, param...)
+		return stateTransition.EnterVariadic(ctx, fsk, param...)
 	}
 
 	return nil

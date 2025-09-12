@@ -10,14 +10,14 @@ import (
 )
 
 func Test_set_initialState_string_ok(t *testing.T) {
-	machine := fsm.New("INITIAL_STATE", []fsm.Action[string, string, any]{})
+	machine, _ := fsm.New("INITIAL_STATE", []fsm.Transition[string, string, any]{})
 
 	require.NotNil(t, machine)
 	require.Equal(t, "INITIAL_STATE", machine.Current())
 }
 
 func Test_set_initialState_int_ok(t *testing.T) {
-	machine := fsm.New(1, []fsm.Action[string, int, any]{})
+	machine, _ := fsm.New(1, []fsm.Transition[string, int, any]{})
 
 	require.NotNil(t, machine)
 	require.Equal(t, 1, machine.Current())
@@ -29,7 +29,7 @@ func Test_set_events_string_int_ok(t *testing.T) {
 		open
 	)
 
-	machine := fsm.New(close, []fsm.Action[string, int, any]{
+	machine, _ := fsm.New(close, []fsm.Transition[string, int, any]{
 		{Name: "open", Src: []int{close}, Dst: open},
 		{Name: "close", Src: []int{open}, Dst: close},
 	})
@@ -45,7 +45,7 @@ func Test_set_events_force_state_ok(t *testing.T) {
 		open
 	)
 
-	machine := fsm.New(close, []fsm.Action[string, int, any]{
+	machine, _ := fsm.New(close, []fsm.Transition[string, int, any]{
 		{Name: "open", Src: []int{close}, Dst: open},
 		{Name: "close", Src: []int{open}, Dst: close},
 	})
@@ -62,7 +62,7 @@ func Test_set_events_force_incorrect_state_ok(t *testing.T) {
 		incorrect
 	)
 
-	machine := fsm.New(close, []fsm.Action[string, int, any]{
+	machine, _ := fsm.New(close, []fsm.Transition[string, int, any]{
 		{Name: "open", Src: []int{close}, Dst: open},
 		{Name: "close", Src: []int{open}, Dst: close},
 	})
@@ -78,7 +78,7 @@ func Test_incorrect_event(t *testing.T) {
 		open
 	)
 
-	machine := fsm.New(close, []fsm.Action[string, int, any]{
+	machine, _ := fsm.New(close, []fsm.Transition[string, int, any]{
 		{Name: "open", Src: []int{close}, Dst: open},
 		{Name: "close", Src: []int{open}, Dst: close},
 	})
@@ -95,7 +95,7 @@ func Test_incorrect_state(t *testing.T) {
 		initial
 	)
 
-	machine := fsm.New(close, []fsm.Action[string, int, any]{
+	machine, _ := fsm.New(close, []fsm.Transition[string, int, any]{
 		{Name: "open", Src: []int{initial}, Dst: open},
 		{Name: "close", Src: []int{open}, Dst: close},
 	})
@@ -117,9 +117,9 @@ func Test_execute_Enter_one_time_one_parameter(t *testing.T) {
 
 	var calledEnter bool
 
-	machine := fsm.New(
+	machine, _ := fsm.New(
 		close, // Initial state
-		[]fsm.Action[string, int, Param]{
+		[]fsm.Transition[string, int, Param]{
 			{
 				Name: "open",
 				Src:  []int{close}, Dst: open,
@@ -155,9 +155,9 @@ func Test_execute_force_state(t *testing.T) {
 		open
 	)
 
-	machine := fsm.New(
+	machine, _ := fsm.New(
 		close, // Initial state
-		[]fsm.Action[string, int, any]{
+		[]fsm.Transition[string, int, any]{
 			{
 				Name: "open",
 				Src:  []int{close}, Dst: open,
@@ -193,9 +193,9 @@ func Test_execute_event_case2(t *testing.T) {
 	enterOpenCalledTimes := 0
 	enterCloseCalledTimes := 0
 
-	machine := fsm.New(
+	machine, _ := fsm.New(
 		close, // Initial state
-		[]fsm.Action[string, int, any]{
+		[]fsm.Transition[string, int, any]{
 			{
 				Name: "open",
 				Src:  []int{open, close}, Dst: open,
@@ -238,9 +238,9 @@ func Test_failed_enter_OK(t *testing.T) {
 	enterOpenCalledTimes := 0
 	enterCloseCalledTimes := 0
 
-	machine := fsm.New(
+	machine, _ := fsm.New(
 		close, // Initial state
-		[]fsm.Action[string, int, any]{
+		[]fsm.Transition[string, int, any]{
 			{
 				Name: "open",
 				Src:  []int{open, close}, Dst: open,
@@ -288,9 +288,9 @@ func Test_execute_different_variadics(t *testing.T) {
 		calledCloseEnterVariadic int
 	)
 
-	machine := fsm.New(
+	machine, _ := fsm.New(
 		close, // Initial state
-		[]fsm.Action[string, int, int]{
+		[]fsm.Transition[string, int, int]{
 			{
 				Name: "open",
 				Src:  []int{close}, Dst: open,
@@ -365,7 +365,7 @@ func Test_set_state_undefined_case1(t *testing.T) {
 		open
 	)
 
-	machine := fsm.New(close, []fsm.Action[string, int, any]{
+	machine, _ := fsm.New(close, []fsm.Transition[string, int, any]{
 		{Name: "open", Src: []int{close}, Dst: open},
 		{Name: "close", Src: []int{open}, Dst: close},
 	})
@@ -381,7 +381,7 @@ func Test_set_state_undefined_case2(t *testing.T) {
 		open
 	)
 
-	machine := fsm.New(close, []fsm.Action[string, int, any]{
+	machine, _ := fsm.New(close, []fsm.Transition[string, int, any]{
 		{Name: "open", Src: []int{close}, Dst: open},
 		{Name: "close", Src: []int{open}, Dst: close},
 	})
@@ -397,7 +397,7 @@ func Test_set_state_undefined_case3(t *testing.T) {
 		open
 	)
 
-	machine := fsm.New(close, []fsm.Action[string, int, any]{
+	machine, _ := fsm.New(close, []fsm.Transition[string, int, any]{
 		{
 			Name: "open", Src: []int{close}, Dst: open,
 			EnterVariadic: func(ctx context.Context, instance fsm.InstanceFSM[string, int, any], param ...any) error {
@@ -428,7 +428,7 @@ func Test_set_events_retrigger_ok(t *testing.T) {
 		calledClose int
 	)
 
-	machine := fsm.New(close, []fsm.Action[string, int, any]{
+	machine, _ := fsm.New(close, []fsm.Transition[string, int, any]{
 		{
 			Name: "open", Src: []int{close, open}, Dst: roger,
 			EnterNoParams: func(ctx context.Context, instance fsm.InstanceFSM[string, int, any]) error {
@@ -467,4 +467,27 @@ func Test_set_events_retrigger_ok(t *testing.T) {
 	require.Equal(t, 2, calledOpen)
 	require.Equal(t, 1, calledReopen)
 	require.Equal(t, 1, calledClose)
+}
+
+func Test_set_repeated_transitions_panic(t *testing.T) {
+	const (
+		close int = iota
+		roger
+		open
+	)
+
+	machine, err := fsm.New(close, []fsm.Transition[string, int, any]{
+		{
+			Name: "open", Src: []int{close, open}, Dst: roger,
+		},
+		{
+			Name: "open", Src: []int{close}, Dst: roger,
+		},
+		{
+			Name: "close", Src: []int{roger, open}, Dst: close,
+		},
+	})
+
+	require.Nil(t, machine)
+	require.ErrorIs(t, err, fsm.ErrRepeated)
 }
