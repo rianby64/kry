@@ -24,40 +24,41 @@ go get github.com/rianby64/kry
 package main
 
 import (
-    "fmt"
+	"context"
+	"fmt"
 
-    fsm "github.com/rianby64/kry"
+	"github.com/rianby64/kry"
 )
 
 func main() {
-    const (
-        close int = iota
-        open
-    )
+	const (
+		close int = iota
+		open
+	)
 
-    ctx := context.TODO()
+	ctx := context.TODO()
 
-    // Define states and transitions
-    machine := fsm.New(
+	// Define states and transitions
+	machine, _ := kry.New(
 		close, // Initial state
-		[]fsm.Event[string, int, any]{
+		[]kry.Transition[string, int, any]{
 			{
-				Name:   "open",
-				Source: []int{open, close}, Destination: open,
+				Name: "open",
+				Src:  []int{open, close}, Dst: open,
 			},
 			{
-				Name:   "close",
-				Source: []int{open}, Destination: close,
+				Name: "close",
+				Src:  []int{open}, Dst: close,
 			},
 		},
 	)
 
-    // Trigger events
-    fmt.Println(machine.Current()) // Output: close
-    machine.Event(ctx, "open")
-    fmt.Println(machine.Current()) // Output: open
-    machine.Event(ctx, "close")
-    fmt.Println(machine.Current()) // Output: close
+	// Trigger events
+	fmt.Println(machine.Current()) // Output: close
+	machine.Event(ctx, "open")
+	fmt.Println(machine.Current()) // Output: open
+	machine.Event(ctx, "close")
+	fmt.Println(machine.Current()) // Output: close
 }
 ```
 
