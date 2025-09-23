@@ -66,6 +66,14 @@ func main() {
 
 - Go 1.18 or higher
 
+## Wish list for future improvements
+
+- Add more examples and documentation.
+- Implement more advanced features like state entry/exit actions.
+- Regex support for transitions matching. (All 5xx, 4xx, etc.)
+- Visualization tools for FSMs.
+- From transition - do a call to another transition, and do not allow looping.
+
 ## License
 
 This project is licensed under the MIT License.

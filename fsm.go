@@ -19,7 +19,7 @@ const (
 	ErrNotAllowed errString = "not allowed"
 )
 
-type InstanceFSM[Action, State, Param comparable] interface {
+type InstanceFSM[Action, State comparable, Param any] interface {
 	Current() State
 
 	// Event(ctx context.Context, event E, param ...P) error // TODO: ask why this method should be here. If YES, then I've to deal with infinity loops
@@ -27,7 +27,7 @@ type InstanceFSM[Action, State, Param comparable] interface {
 	ForceState(state State) error
 }
 
-type callbacks[Action, State, Param comparable] struct {
+type callbacks[Action, State comparable, Param any] struct {
 	EnterNoParams func(ctx context.Context, instance InstanceFSM[Action, State, Param]) error
 	Enter         func(ctx context.Context, instance InstanceFSM[Action, State, Param], param Param) error
 	EnterVariadic func(ctx context.Context, instance InstanceFSM[Action, State, Param], param ...Param) error
@@ -35,7 +35,7 @@ type callbacks[Action, State, Param comparable] struct {
 
 // Transition contains the name of the action, the source states, the destination state,
 // and optional callbacks that are executed when the action is triggered.
-type Transition[Action, State, Param comparable] struct {
+type Transition[Action, State comparable, Param any] struct {
 	Name Action
 	Src  []State
 	Dst  State
@@ -45,7 +45,7 @@ type Transition[Action, State, Param comparable] struct {
 	EnterVariadic func(ctx context.Context, instance InstanceFSM[Action, State, Param], param ...Param) error
 }
 
-type FSM[Action, State, Param comparable] struct {
+type FSM[Action, State comparable, Param any] struct {
 	currentState State
 	states       map[State]struct{}
 	path         map[Action]map[State]map[State]callbacks[Action, State, Param]
@@ -54,7 +54,7 @@ type FSM[Action, State, Param comparable] struct {
 	canTriggerEvents bool
 }
 
-func New[Action, State, Param comparable](
+func New[Action, State comparable, Param any](
 	initialState State,
 	transitions []Transition[Action, State, Param],
 ) (*FSM[Action, State, Param], error) {
