@@ -542,3 +542,111 @@ func Test_transite_incorrect_event_ok(t *testing.T) {
 	require.ErrorIs(t, machine.Event(context.TODO(), "close"), errExpected)
 	require.Equal(t, open, machine.Current())
 }
+
+func Test_loop_case_1(t *testing.T) {
+	const (
+		close int = iota
+		roger
+		open
+	)
+
+	calledOpen := 0
+	calledRoger := 0
+	calledClose := 0
+
+	machine, _ := fsm.New(close, []fsm.Transition[string, int, any]{
+		{
+			Name: "open", Src: []int{close}, Dst: open,
+			EnterNoParams: func(ctx context.Context, instance fsm.InstanceFSM[string, int, any]) error {
+				if calledOpen > 0 {
+					t.Log("open should not be called more than one time")
+					t.FailNow()
+				}
+				calledOpen++
+				return instance.Apply(ctx, "roger", roger)
+			},
+		},
+		{
+			Name: "roger", Src: []int{open, close}, Dst: roger,
+			EnterNoParams: func(ctx context.Context, instance fsm.InstanceFSM[string, int, any]) error {
+				if calledRoger > 0 {
+					t.Log("roger should not be called more than one time")
+					t.FailNow()
+				}
+				calledRoger++
+				return nil
+			},
+		},
+		{
+			Name: "close", Src: []int{roger, open}, Dst: close,
+			EnterNoParams: func(ctx context.Context, instance fsm.InstanceFSM[string, int, any]) error {
+				if calledClose > 0 {
+					t.Log("close should not be called more than one time")
+					t.FailNow()
+				}
+				calledClose++
+				return nil
+			},
+		},
+	})
+
+	require.NoError(t, machine.Apply(context.TODO(), "open", open))
+	require.Equal(t, roger, machine.Current())
+	require.Equal(t, 1, calledOpen)
+	require.Equal(t, 1, calledRoger)
+	require.Equal(t, 0, calledClose)
+}
+
+func Test_loop_case_infinity_break(t *testing.T) {
+	const (
+		close int = iota
+		roger
+		open
+	)
+
+	calledOpen := 0
+	calledRoger := 0
+	calledClose := 0
+
+	machine, _ := fsm.New(close, []fsm.Transition[string, int, any]{
+		{
+			Name: "open", Src: []int{close}, Dst: open,
+			EnterNoParams: func(ctx context.Context, instance fsm.InstanceFSM[string, int, any]) error {
+				if calledOpen > 0 {
+					t.Log("open should not be called more than one time")
+					t.FailNow()
+				}
+				calledOpen++
+				return instance.Apply(ctx, "roger", roger)
+			},
+		},
+		{
+			Name: "roger", Src: []int{open, close}, Dst: roger,
+			EnterNoParams: func(ctx context.Context, instance fsm.InstanceFSM[string, int, any]) error {
+				if calledRoger > 0 {
+					t.Log("roger should not be called more than one time")
+					t.FailNow()
+				}
+				calledRoger++
+				return instance.Apply(ctx, "close", close)
+			},
+		},
+		{
+			Name: "close", Src: []int{roger, open}, Dst: close,
+			EnterNoParams: func(ctx context.Context, instance fsm.InstanceFSM[string, int, any]) error {
+				if calledClose > 0 {
+					t.Log("close should not be called more than one time")
+					t.FailNow()
+				}
+				calledClose++
+				return instance.Apply(ctx, "open", open) // here I introduced a loop intentionally
+			},
+		},
+	})
+
+	require.ErrorIs(t, machine.Apply(context.TODO(), "open", open), fsm.ErrLoopFound)
+	require.Equal(t, close, machine.Current())
+	require.Equal(t, 1, calledOpen)
+	require.Equal(t, 1, calledRoger)
+	require.Equal(t, 1, calledClose)
+}

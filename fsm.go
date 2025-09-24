@@ -5,6 +5,34 @@ import (
 	"fmt"
 )
 
+type ctxKeyLoop int
+
+// loopDetection keeps track of state transitions to detect loops.
+// It maps from a source state to a map of destination states and their transition counts.
+type loopDetection[State comparable] map[State]map[State]int
+
+func newLoopDetection[State comparable]() loopDetection[State] {
+	ld := loopDetection[State]{}
+
+	return ld
+}
+
+func (ld loopDetection[State]) Inc(stateFrom, stateTo State) {
+	if _, ok := ld[stateFrom]; !ok {
+		ld[stateFrom] = make(map[State]int)
+	}
+
+	ld[stateFrom][stateTo]++
+}
+
+func (ld loopDetection[State]) Get(stateFrom, stateTo State) int {
+	if _, ok := ld[stateFrom]; !ok {
+		return 0
+	}
+
+	return ld[stateFrom][stateTo]
+}
+
 type errString string
 
 func (e errString) Error() string {
@@ -12,17 +40,21 @@ func (e errString) Error() string {
 }
 
 const (
+	loopKey ctxKeyLoop = 482 // just a random number
+
 	ErrUnknown  errString = "unknown"
 	ErrNotFound errString = "not found"
 	ErrRepeated errString = "already exists"
 
+	ErrLoopFound  errString = "loop found"
 	ErrNotAllowed errString = "not allowed"
 )
 
 type InstanceFSM[Action, State comparable, Param any] interface {
 	Current() State
 
-	// Event(ctx context.Context, event E, param ...P) error // TODO: ask why this method should be here. If YES, then I've to deal with infinity loops
+	Event(ctx context.Context, action Action, param ...Param) error
+	Apply(ctx context.Context, action Action, newState State, param ...Param) error
 
 	ForceState(state State) error
 }
@@ -152,11 +184,50 @@ func (fsk *FSM[Action, State, Param]) Event(ctx context.Context, action Action, 
 	return nil
 }
 
+func (fsk *FSM[Action, State, Param]) checkLoop(
+	ctx context.Context,
+	action Action,
+	currentState,
+	newState State,
+) (context.Context, error) {
+	var (
+		loopEx      loopDetection[State]
+		ctxWithLoop context.Context
+		ok          bool
+	)
+
+	loopFromCtx := ctx.Value(loopKey)
+	if loopFromCtx == nil {
+		loopEx = newLoopDetection[State]()
+		ctxWithLoop = context.WithValue(ctx, loopKey, loopEx)
+	} else {
+		loopEx, ok = loopFromCtx.(loopDetection[State])
+		if !ok {
+			return nil, fmt.Errorf("type assertion for loop detection failed: %w", ErrUnknown)
+		}
+		ctxWithLoop = ctx
+	}
+
+	if loopEx.Get(currentState, newState) > 0 {
+		return nil, fmt.Errorf("loop detected on action %v from state %v to state %v: %w",
+			action, currentState, newState, ErrLoopFound)
+	}
+
+	loopEx.Inc(currentState, newState)
+
+	return ctxWithLoop, nil
+}
+
 func (fsk *FSM[Action, State, Param]) Apply(ctx context.Context, action Action, newState State, param ...Param) error {
 	currentState := fsk.currentState
 	foundAction, ok := fsk.path[action]
 	if !ok {
 		return fmt.Errorf("action %w: %v", ErrUnknown, action)
+	}
+
+	ctxWithLoop, err := fsk.checkLoop(ctx, action, currentState, newState)
+	if err != nil {
+		return err
 	}
 
 	foundSrcState, ok := foundAction[currentState]
@@ -165,7 +236,7 @@ func (fsk *FSM[Action, State, Param]) Apply(ctx context.Context, action Action, 
 		if ok {
 			fsk.currentState = newState
 
-			if err := fsk.switchEventByLengthParams(ctx, callbacks, param...); err != nil {
+			if err := fsk.switchEventByLengthParams(ctxWithLoop, callbacks, param...); err != nil {
 				fsk.currentState = currentState
 
 				return fmt.Errorf("failed to apply (%v) from %v to %v: %w",
