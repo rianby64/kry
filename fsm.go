@@ -186,7 +186,6 @@ func (fsk *FSM[Action, State, Param]) Event(ctx context.Context, action Action, 
 
 func (fsk *FSM[Action, State, Param]) checkLoop(
 	ctx context.Context,
-	action Action,
 	currentState,
 	newState State,
 ) (context.Context, error) {
@@ -209,8 +208,8 @@ func (fsk *FSM[Action, State, Param]) checkLoop(
 	}
 
 	if loopEx.Get(currentState, newState) > 0 {
-		return nil, fmt.Errorf("loop detected on action %v from state %v to state %v: %w",
-			action, currentState, newState, ErrLoopFound)
+		return nil, fmt.Errorf("from '%v' to '%v': %w",
+			currentState, newState, ErrLoopFound)
 	}
 
 	loopEx.Inc(currentState, newState)
@@ -225,9 +224,9 @@ func (fsk *FSM[Action, State, Param]) Apply(ctx context.Context, action Action, 
 		return fmt.Errorf("action %w: %v", ErrUnknown, action)
 	}
 
-	ctxWithLoop, err := fsk.checkLoop(ctx, action, currentState, newState)
+	ctxWithLoop, err := fsk.checkLoop(ctx, currentState, newState)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to apply (%v): %w", action, err)
 	}
 
 	foundSrcState, ok := foundAction[currentState]
@@ -239,7 +238,7 @@ func (fsk *FSM[Action, State, Param]) Apply(ctx context.Context, action Action, 
 			if err := fsk.switchEventByLengthParams(ctxWithLoop, callbacks, param...); err != nil {
 				fsk.currentState = currentState
 
-				return fmt.Errorf("failed to apply (%v) from %v to %v: %w",
+				return fmt.Errorf("failed to apply (%v) from '%v' to '%v': %w",
 					action, currentState, newState, err)
 			}
 
@@ -254,17 +253,29 @@ func (fsk *FSM[Action, State, Param]) switchEventByLengthParams(ctx context.Cont
 	switch len(param) {
 	case 0:
 		if stateTransition.EnterNoParams != nil {
-			return stateTransition.EnterNoParams(ctx, fsk)
+			if err := stateTransition.EnterNoParams(ctx, fsk); err != nil {
+				return fmt.Errorf("failed to execute enter (no-params) callback: %w", err)
+			}
+
+			return nil
 		}
 
 	case 1:
 		if stateTransition.Enter != nil {
-			return stateTransition.Enter(ctx, fsk, param[0])
+			if err := stateTransition.Enter(ctx, fsk, param[0]); err != nil {
+				return fmt.Errorf("failed to execute enter (single-param) callback: %w", err)
+			}
+
+			return nil
 		}
 	}
 
 	if stateTransition.EnterVariadic != nil {
-		return stateTransition.EnterVariadic(ctx, fsk, param...)
+		if err := stateTransition.EnterVariadic(ctx, fsk, param...); err != nil {
+			return fmt.Errorf("failed to execute enter (variadic) callback: %w", err)
+		}
+
+		return nil
 	}
 
 	return nil
