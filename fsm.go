@@ -9,28 +9,37 @@ type ctxKeyLoop int
 
 // loopDetection keeps track of state transitions to detect loops.
 // It maps from a source state to a map of destination states and their transition counts.
-type loopDetection[State comparable] map[State]map[State]int
+type loopDetection[State comparable] map[uint64]map[State]map[State]int
 
-func newLoopDetection[State comparable]() loopDetection[State] {
+func newLoopDetection[State comparable](id uint64) loopDetection[State] {
 	ld := loopDetection[State]{}
+	ld[id] = make(map[State]map[State]int)
 
 	return ld
 }
 
-func (ld loopDetection[State]) Inc(stateFrom, stateTo State) {
-	if _, ok := ld[stateFrom]; !ok {
-		ld[stateFrom] = make(map[State]int)
+func (ld loopDetection[State]) Inc(id uint64, stateFrom, stateTo State) {
+	if _, ok := ld[id]; !ok {
+		ld[id] = make(map[State]map[State]int)
 	}
 
-	ld[stateFrom][stateTo]++
+	if _, ok := ld[id][stateFrom]; !ok {
+		ld[id][stateFrom] = make(map[State]int)
+	}
+
+	ld[id][stateFrom][stateTo]++
 }
 
-func (ld loopDetection[State]) Get(stateFrom, stateTo State) int {
-	if _, ok := ld[stateFrom]; !ok {
+func (ld loopDetection[State]) Get(id uint64, stateFrom, stateTo State) int {
+	if _, ok := ld[id]; !ok {
 		return 0
 	}
 
-	return ld[stateFrom][stateTo]
+	if _, ok := ld[id][stateFrom]; !ok {
+		return 0
+	}
+
+	return ld[id][stateFrom][stateTo]
 }
 
 type errString string
@@ -78,6 +87,7 @@ type Transition[Action, State comparable, Param any] struct {
 }
 
 type FSM[Action, State comparable, Param any] struct {
+	id           uint64
 	currentState State
 	states       map[State]struct{}
 	path         map[Action]map[State]map[State]callbacks[Action, State, Param]
@@ -85,6 +95,10 @@ type FSM[Action, State comparable, Param any] struct {
 	events           map[Action]Transition[Action, State, Param]
 	canTriggerEvents bool
 }
+
+var (
+	idMachine uint64
+)
 
 func New[Action, State comparable, Param any](
 	initialState State,
@@ -140,7 +154,10 @@ func New[Action, State comparable, Param any](
 		events = nil
 	}
 
+	idMachine++
+
 	return &FSM[Action, State, Param]{
+		id:           idMachine,
 		currentState: initialState,
 		path:         path,
 		states:       states,
@@ -197,7 +214,7 @@ func (fsk *FSM[Action, State, Param]) checkLoop(
 
 	loopFromCtx := ctx.Value(loopKey)
 	if loopFromCtx == nil {
-		loopEx = newLoopDetection[State]()
+		loopEx = newLoopDetection[State](fsk.id)
 		ctxWithLoop = context.WithValue(ctx, loopKey, loopEx)
 	} else {
 		loopEx, ok = loopFromCtx.(loopDetection[State])
@@ -207,12 +224,12 @@ func (fsk *FSM[Action, State, Param]) checkLoop(
 		ctxWithLoop = ctx
 	}
 
-	if loopEx.Get(currentState, newState) > 0 {
+	if loopEx.Get(fsk.id, currentState, newState) > 0 {
 		return nil, fmt.Errorf("from '%v' to '%v': %w",
 			currentState, newState, ErrLoopFound)
 	}
 
-	loopEx.Inc(currentState, newState)
+	loopEx.Inc(fsk.id, currentState, newState)
 
 	return ctxWithLoop, nil
 }

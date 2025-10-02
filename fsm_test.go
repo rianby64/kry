@@ -650,3 +650,52 @@ func Test_loop_case_infinity_break(t *testing.T) {
 	require.Equal(t, 1, calledRoger)
 	require.Equal(t, 1, calledClose)
 }
+
+func Test_loop_case_infinity_break_two_machines(t *testing.T) {
+	const (
+		close int = iota
+		open
+	)
+
+	var (
+		machine1,
+		machine2 *fsm.FSM[string, int, any]
+	)
+
+	calledOpen1 := 0
+	calledOpen2 := 0
+
+	machine1, _ = fsm.New(close, []fsm.Transition[string, int, any]{
+		{
+			Name: "open", Src: []int{close}, Dst: open,
+			EnterNoParams: func(ctx context.Context, instance fsm.InstanceFSM[string, int, any]) error {
+				if calledOpen1 > 0 {
+					t.Log("open should not be called more than one time")
+					t.FailNow()
+				}
+				calledOpen1++
+				return machine2.Apply(ctx, "open", open)
+			},
+		},
+	})
+
+	machine2, _ = fsm.New(close, []fsm.Transition[string, int, any]{
+		{
+			Name: "open", Src: []int{close}, Dst: open,
+			EnterNoParams: func(ctx context.Context, instance fsm.InstanceFSM[string, int, any]) error {
+				if calledOpen2 > 0 {
+					t.Log("open should not be called more than one time")
+					t.FailNow()
+				}
+				calledOpen2++
+				return nil
+			},
+		},
+	})
+
+	require.NoError(t, machine1.Apply(context.TODO(), "open", open))
+	require.Equal(t, open, machine1.Current())
+	require.Equal(t, open, machine2.Current())
+	require.Equal(t, 1, calledOpen1)
+	require.Equal(t, 1, calledOpen2)
+}
