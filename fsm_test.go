@@ -23,6 +23,21 @@ func Test_set_initialState_int_ok(t *testing.T) {
 	require.Equal(t, 1, machine.Current())
 }
 
+func Test_undefined_src_state(t *testing.T) {
+	const (
+		close int = iota
+		open
+	)
+
+	machine, err := fsm.New(close, []fsm.Transition[string, int, any]{
+		{Name: "open", Src: []int{close}, Dst: open},
+		{Name: "close", Dst: close},
+	})
+
+	require.ErrorIs(t, err, fsm.ErrNotFound)
+	require.Nil(t, machine)
+}
+
 func Test_set_transitions_string_int_ok(t *testing.T) {
 	const (
 		close int = iota
@@ -698,4 +713,68 @@ func Test_loop_case_infinity_break_two_machines(t *testing.T) {
 	require.Equal(t, open, machine2.Current())
 	require.Equal(t, 1, calledOpen1)
 	require.Equal(t, 1, calledOpen2)
+}
+
+func Test_set_transitions_match_fn(t *testing.T) {
+	const (
+		close int = iota
+		open1
+		open2
+		open3
+		roger1
+		roger2
+		roger3
+	)
+
+	ctx := context.TODO()
+	transitions := []fsm.Transition[string, int, any]{
+		{
+			Name: "open-slightly",
+			Src:  []int{close},
+			Dst:  open1,
+		},
+		{
+			Name: "open-normal",
+			Src:  []int{close},
+			Dst:  open2,
+		},
+		{
+			Name: "open-full",
+			Src:  []int{close},
+			Dst:  open3,
+		},
+
+		{
+			Name: "roger",
+			Src:  []int{open1},
+			Dst:  roger1,
+		},
+		{
+			Name: "roger-trap",
+			Match: func(state int) bool {
+				return open1 <= state && state <= open3
+			},
+			Dst: roger3,
+		},
+
+		{
+			Name: "close",
+			Match: func(state int) bool {
+				return roger1 <= state && state <= roger3
+			},
+			Dst: close,
+		},
+	}
+	machine, errConstructor := fsm.New(close, transitions)
+	require.NoError(t, errConstructor)
+
+	require.NoError(t, machine.Apply(ctx, "open-full", open3))
+	require.Equal(t, open3, machine.Current())
+
+	require.NoError(t, machine.Apply(ctx, "roger-trap", roger3))
+	require.Equal(t, roger3, machine.Current())
+
+	errApply := machine.Apply(ctx, "close", close)
+	require.NoError(t, errApply)
+	require.Equal(t, close, machine.Current())
 }

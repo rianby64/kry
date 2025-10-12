@@ -84,6 +84,8 @@ type Transition[Action, State comparable, Param any] struct {
 	Src  []State
 	Dst  State
 
+	Match func(state State) bool // optional custom matching function for source states
+
 	EnterNoParams handlerNoParams[Action, State, Param]
 	Enter         handler[Action, State, Param]
 	EnterVariadic handlerVariadic[Action, State, Param]
@@ -127,6 +129,10 @@ func New[Action, State comparable, Param any](
 		}
 
 		dst := transition.Dst
+
+		if len(transition.Src) == 0 && transition.Match == nil {
+			return nil, fmt.Errorf("for action %v src states nor matching: %w", action, ErrNotFound)
+		}
 
 		for _, src := range transition.Src {
 			if _, ok := path[action][src]; !ok {
