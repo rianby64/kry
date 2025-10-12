@@ -68,10 +68,13 @@ type InstanceFSM[Action, State comparable, Param any] interface {
 	ForceState(state State) error
 }
 
+type handlerNoParams[Action, State comparable, Param any] = func(ctx context.Context, instance InstanceFSM[Action, State, Param]) error
+type handler[Action, State comparable, Param any] = func(ctx context.Context, instance InstanceFSM[Action, State, Param], param Param) error
+type handlerVariadic[Action, State comparable, Param any] = func(ctx context.Context, instance InstanceFSM[Action, State, Param], param ...Param) error
 type callbacks[Action, State comparable, Param any] struct {
-	EnterNoParams func(ctx context.Context, instance InstanceFSM[Action, State, Param]) error
-	Enter         func(ctx context.Context, instance InstanceFSM[Action, State, Param], param Param) error
-	EnterVariadic func(ctx context.Context, instance InstanceFSM[Action, State, Param], param ...Param) error
+	EnterNoParams handlerNoParams[Action, State, Param]
+	Enter         handler[Action, State, Param]
+	EnterVariadic handlerVariadic[Action, State, Param]
 }
 
 // Transition contains the name of the action, the source states, the destination state,
@@ -81,9 +84,9 @@ type Transition[Action, State comparable, Param any] struct {
 	Src  []State
 	Dst  State
 
-	EnterNoParams func(ctx context.Context, instance InstanceFSM[Action, State, Param]) error
-	Enter         func(ctx context.Context, instance InstanceFSM[Action, State, Param], param Param) error
-	EnterVariadic func(ctx context.Context, instance InstanceFSM[Action, State, Param], param ...Param) error
+	EnterNoParams handlerNoParams[Action, State, Param]
+	Enter         handler[Action, State, Param]
+	EnterVariadic handlerVariadic[Action, State, Param]
 }
 
 type FSM[Action, State comparable, Param any] struct {
@@ -94,6 +97,8 @@ type FSM[Action, State comparable, Param any] struct {
 
 	events           map[Action]Transition[Action, State, Param]
 	canTriggerEvents bool
+
+	gaphic string
 }
 
 var (
@@ -156,6 +161,8 @@ func New[Action, State comparable, Param any](
 
 	idMachine++
 
+	graphic := fmt.Sprintf("digraph fsm_%d {\n%s\n}", idMachine, VisualizeActions(transitions))
+
 	return &FSM[Action, State, Param]{
 		id:           idMachine,
 		currentState: initialState,
@@ -164,7 +171,12 @@ func New[Action, State comparable, Param any](
 
 		events:           events,
 		canTriggerEvents: canTriggerEvents,
+		gaphic:           graphic,
 	}, nil
+}
+
+func (fsk *FSM[Action, State, Param]) String() string {
+	return fsk.gaphic
 }
 
 func (fsk *FSM[Action, State, Param]) Current() State {
