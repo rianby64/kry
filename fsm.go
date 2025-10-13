@@ -84,16 +84,24 @@ type Transition[Action, State comparable, Param any] struct {
 	Src  []State
 	Dst  State
 
+	Match func(state State) bool // optional custom matching function for source states
+
 	EnterNoParams handlerNoParams[Action, State, Param]
 	Enter         handler[Action, State, Param]
 	EnterVariadic handlerVariadic[Action, State, Param]
+}
+
+type matchState[Action, State comparable, Param any] struct {
+	Match     func(state State) bool // function to determine if transition is valid from the given state
+	Callbacks callbacks[Action, State, Param]
 }
 
 type FSM[Action, State comparable, Param any] struct {
 	id           uint64
 	currentState State
 	states       map[State]struct{}
-	path         map[Action]map[State]map[State]callbacks[Action, State, Param]
+	path         map[Action]map[State]map[State]callbacks[Action, State, Param] // action -> dst state -> src state -> callbacks
+	pathByMatch  map[Action]map[State][]matchState[Action, State, Param]        // action -> dst state -> list of match conditions for dst states
 
 	events           map[Action]Transition[Action, State, Param]
 	canTriggerEvents bool
@@ -110,6 +118,7 @@ func New[Action, State comparable, Param any](
 	transitions []Transition[Action, State, Param],
 ) (*FSM[Action, State, Param], error) {
 	path := make(map[Action]map[State]map[State]callbacks[Action, State, Param])
+	pathByMatch := make(map[Action]map[State][]matchState[Action, State, Param])
 	states := map[State]struct{}{
 		initialState: {},
 	}
@@ -126,21 +135,43 @@ func New[Action, State comparable, Param any](
 			canTriggerEvents = false
 		}
 
-		dst := transition.Dst
+		if len(transition.Src) == 0 && transition.Match == nil {
+			return nil, fmt.Errorf("for action %v neither src states nor matching function found: %w", action, ErrNotFound)
+		}
 
-		for _, src := range transition.Src {
-			if _, ok := path[action][src]; !ok {
-				path[action][src] = make(map[State]callbacks[Action, State, Param])
+		dst := transition.Dst
+		if _, ok := path[action][dst]; !ok {
+			path[action][dst] = make(map[State]callbacks[Action, State, Param])
+		}
+
+		if transition.Match != nil {
+			if _, ok := pathByMatch[action]; !ok {
+				pathByMatch[action] = make(map[State][]matchState[Action, State, Param])
 			}
 
-			if _, ok := path[action][src][dst]; ok {
+			if _, ok := pathByMatch[action][dst]; !ok {
+				pathByMatch[action][dst] = make([]matchState[Action, State, Param], 0)
+			}
+
+			pathByMatch[action][dst] = append(pathByMatch[action][dst], matchState[Action, State, Param]{
+				Match: transition.Match,
+				Callbacks: callbacks[Action, State, Param]{
+					EnterVariadic: transition.EnterVariadic,
+					Enter:         transition.Enter,
+					EnterNoParams: transition.EnterNoParams,
+				},
+			})
+		}
+
+		for _, src := range transition.Src {
+			if _, ok := path[action][dst][src]; ok {
 				return nil, fmt.Errorf(
 					"action %v from state %v to state %v: %w",
 					action, src, dst, ErrRepeated,
 				)
 			}
 
-			path[action][src][dst] = callbacks[Action, State, Param]{
+			path[action][dst][src] = callbacks[Action, State, Param]{
 				EnterVariadic: transition.EnterVariadic,
 				Enter:         transition.Enter,
 				EnterNoParams: transition.EnterNoParams,
@@ -167,6 +198,7 @@ func New[Action, State comparable, Param any](
 		id:           idMachine,
 		currentState: initialState,
 		path:         path,
+		pathByMatch:  pathByMatch,
 		states:       states,
 
 		events:           events,
@@ -258,9 +290,9 @@ func (fsk *FSM[Action, State, Param]) Apply(ctx context.Context, action Action, 
 		return fmt.Errorf("failed to apply (%v): %w", action, err)
 	}
 
-	foundSrcState, ok := foundAction[currentState]
+	foundDstState, ok := foundAction[newState]
 	if ok {
-		callbacks, ok := foundSrcState[newState]
+		callbacks, ok := foundDstState[currentState]
 		if ok {
 			fsk.currentState = newState
 
@@ -272,6 +304,27 @@ func (fsk *FSM[Action, State, Param]) Apply(ctx context.Context, action Action, 
 			}
 
 			return nil
+		}
+	}
+
+	foundActionByMatch, ok := fsk.pathByMatch[action]
+	if ok {
+		foundDstByMatch, ok := foundActionByMatch[newState]
+		if ok {
+			for _, matchState := range foundDstByMatch {
+				if matchState.Match(currentState) {
+					fsk.currentState = newState
+
+					if err := fsk.switchEventByLengthParams(ctxWithLoop, matchState.Callbacks, param...); err != nil {
+						fsk.currentState = currentState
+
+						return fmt.Errorf("failed to apply by match (%v) from '%v' to '%v': %w",
+							action, currentState, newState, err)
+					}
+
+					return nil
+				}
+			}
 		}
 	}
 
