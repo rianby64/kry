@@ -3,6 +3,7 @@ package kry_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 
 	fsm "github.com/rianby64/kry"
@@ -726,6 +727,10 @@ func Test_set_transitions_match_fn(t *testing.T) {
 		roger3
 	)
 
+	calledClosed := false
+	calledRoger1 := false
+	calledRogerMatch := false
+
 	ctx := context.TODO()
 	transitions := []fsm.Transition[string, int, any]{
 		{
@@ -748,6 +753,11 @@ func Test_set_transitions_match_fn(t *testing.T) {
 			Name: "roger",
 			Src:  []int{open1},
 			Dst:  roger1,
+			EnterNoParams: func(ctx context.Context, instance fsm.InstanceFSM[string, int, any]) error {
+				calledRoger1 = true
+
+				return nil
+			},
 		},
 		{
 			Name: "roger-trap",
@@ -755,6 +765,11 @@ func Test_set_transitions_match_fn(t *testing.T) {
 				return open1 <= state && state <= open3
 			},
 			Dst: roger3,
+			EnterNoParams: func(ctx context.Context, instance fsm.InstanceFSM[string, int, any]) error {
+				calledRogerMatch = true
+
+				return nil
+			},
 		},
 
 		{
@@ -763,6 +778,11 @@ func Test_set_transitions_match_fn(t *testing.T) {
 				return roger1 <= state && state <= roger3
 			},
 			Dst: close,
+			EnterNoParams: func(ctx context.Context, instance fsm.InstanceFSM[string, int, any]) error {
+				calledClosed = true
+
+				return nil
+			},
 		},
 	}
 	machine, errConstructor := fsm.New(close, transitions)
@@ -773,8 +793,71 @@ func Test_set_transitions_match_fn(t *testing.T) {
 
 	require.NoError(t, machine.Apply(ctx, "roger-trap", roger3))
 	require.Equal(t, roger3, machine.Current())
+	require.True(t, calledRogerMatch)
 
-	errApply := machine.Apply(ctx, "close", close)
-	require.NoError(t, errApply)
+	require.NoError(t, machine.Apply(ctx, "close", close))
 	require.Equal(t, close, machine.Current())
+	require.True(t, calledClosed)
+
+	require.NoError(t, machine.Apply(ctx, "open-slightly", open1))
+	require.Equal(t, open1, machine.Current())
+
+	require.NoError(t, machine.Apply(ctx, "roger", roger1))
+	require.Equal(t, roger1, machine.Current())
+	require.True(t, calledRoger1)
+}
+
+func Test_set_transitions_match_fn_error(t *testing.T) {
+	const (
+		close int = iota
+		open1
+		open2
+		open3
+		roger
+	)
+
+	expectedError := fmt.Errorf("expected error")
+	ctx := context.TODO()
+	transitions := []fsm.Transition[string, int, any]{
+		{
+			Name: "open-slightly",
+			Src:  []int{close},
+			Dst:  open1,
+		},
+		{
+			Name: "open-normal",
+			Src:  []int{close},
+			Dst:  open2,
+		},
+		{
+			Name: "open-full",
+			Src:  []int{close},
+			Dst:  open3,
+		},
+
+		{
+			Name: "roger-trap",
+			Match: func(state int) bool {
+				return open1 <= state && state <= open3
+			},
+			Dst: roger,
+			EnterNoParams: func(ctx context.Context, instance fsm.InstanceFSM[string, int, any]) error {
+				return expectedError
+			},
+		},
+
+		{
+			Name: "close",
+			Src:  []int{roger},
+			Dst:  close,
+		},
+	}
+	machine, errConstructor := fsm.New(close, transitions)
+	require.NoError(t, errConstructor)
+
+	require.NoError(t, machine.Apply(ctx, "open-full", open3))
+	require.Equal(t, open3, machine.Current())
+
+	require.ErrorIs(t, machine.Apply(ctx, "roger-trap", roger), expectedError)
+	require.Equal(t, open3, machine.Current())
 }
