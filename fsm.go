@@ -101,7 +101,7 @@ type FSM[Action, State comparable, Param any] struct {
 	currentState State
 	states       map[State]struct{}
 	path         map[Action]map[State]map[State]callbacks[Action, State, Param] // action -> dst state -> src state -> callbacks
-	pathByMatch  map[Action]map[State][]matchState[Action, State, Param]        // action -> dst state -> list of matching functions for src states
+	pathByMatch  map[Action]map[State][]matchState[Action, State, Param]        // action -> dst state -> list of match conditions for dst states
 
 	events           map[Action]Transition[Action, State, Param]
 	canTriggerEvents bool
