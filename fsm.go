@@ -136,7 +136,7 @@ func New[Action, State comparable, Param any](
 		}
 
 		if len(transition.Src) == 0 && transition.Match == nil {
-			return nil, fmt.Errorf("for action %v src states nor matching: %w", action, ErrNotFound)
+			return nil, fmt.Errorf("for action %v neither src states nor matching function found: %w", action, ErrNotFound)
 		}
 
 		dst := transition.Dst
