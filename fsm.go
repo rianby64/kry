@@ -278,54 +278,93 @@ func (fsk *FSM[Action, State, Param]) checkLoop(
 	return ctxWithLoop, nil
 }
 
+func (fsk *FSM[Action, State, Param]) apply(
+	ctx context.Context,
+	callbacks callbacks[Action, State, Param],
+	action Action,
+	currentState, newState State,
+	param ...Param,
+) error {
+	fsk.currentState = newState
+
+	if err := fsk.switchEventByLengthParams(ctx, callbacks, param...); err != nil {
+		fsk.currentState = currentState
+
+		return fmt.Errorf("failed to apply (%v) from '%v' to '%v': %w",
+			action, currentState, newState, err)
+	}
+
+	return nil
+}
+
+func (fsk *FSM[Action, State, Param]) applyByExact(ctx context.Context, action Action, newState State, param ...Param) (bool, error) {
+	foundAction := fsk.path[action]
+	currentState := fsk.currentState
+
+	foundDstState, ok := foundAction[newState]
+	if !ok {
+		return false, nil
+	}
+
+	callbacks, ok := foundDstState[currentState]
+	if !ok {
+		return false, nil
+	}
+
+	if err := fsk.apply(ctx, callbacks, action, currentState, newState, param...); err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
+
+func (fsk *FSM[Action, State, Param]) applyByMatch(ctx context.Context, action Action, newState State, param ...Param) (bool, error) {
+	currentState := fsk.currentState
+	foundActionByMatch, ok := fsk.pathByMatch[action]
+	if !ok {
+		return false, nil
+	}
+
+	foundDstByMatch, ok := foundActionByMatch[newState]
+	if !ok {
+		return false, nil
+	}
+
+	for _, matchState := range foundDstByMatch {
+		if matchState.Match(currentState) {
+			if err := fsk.apply(ctx, matchState.Callbacks, action, currentState, newState, param...); err != nil {
+				return false, err
+			}
+
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
 func (fsk *FSM[Action, State, Param]) Apply(ctx context.Context, action Action, newState State, param ...Param) error {
 	currentState := fsk.currentState
-	foundAction, ok := fsk.path[action]
-	if !ok {
-		return fmt.Errorf("action %w: %v", ErrUnknown, action)
-	}
 
 	ctxWithLoop, err := fsk.checkLoop(ctx, currentState, newState)
 	if err != nil {
 		return fmt.Errorf("failed to apply (%v): %w", action, err)
 	}
 
-	foundDstState, ok := foundAction[newState]
-	if ok {
-		callbacks, ok := foundDstState[currentState]
-		if ok {
-			fsk.currentState = newState
-
-			if err := fsk.switchEventByLengthParams(ctxWithLoop, callbacks, param...); err != nil {
-				fsk.currentState = currentState
-
-				return fmt.Errorf("failed to apply (%v) from '%v' to '%v': %w",
-					action, currentState, newState, err)
-			}
-
-			return nil
-		}
+	if _, ok := fsk.path[action]; !ok {
+		return fmt.Errorf("action %w: %v", ErrUnknown, action)
 	}
 
-	foundActionByMatch, ok := fsk.pathByMatch[action]
-	if ok {
-		foundDstByMatch, ok := foundActionByMatch[newState]
-		if ok {
-			for _, matchState := range foundDstByMatch {
-				if matchState.Match(currentState) {
-					fsk.currentState = newState
+	if applied, err := fsk.applyByExact(ctxWithLoop, action, newState, param...); err != nil {
+		return err
+	} else if applied {
+		return nil
+	}
 
-					if err := fsk.switchEventByLengthParams(ctxWithLoop, matchState.Callbacks, param...); err != nil {
-						fsk.currentState = currentState
-
-						return fmt.Errorf("failed to apply by match (%v) from '%v' to '%v': %w",
-							action, currentState, newState, err)
-					}
-
-					return nil
-				}
-			}
-		}
+	if applied, err := fsk.applyByMatch(ctxWithLoop, action, newState, param...); err != nil {
+		return err
+	} else if applied {
+		return nil
 	}
 
 	return fmt.Errorf("transition (%v) from state %w: %v", action, ErrNotFound, currentState)
