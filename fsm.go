@@ -92,7 +92,7 @@ type Transition[Action, State comparable, Param any] struct {
 }
 
 type matchState[Action, State comparable, Param any] struct {
-	Match     func(state State) bool // action -> dst state -> list of matching functions for src states
+	Match     func(state State) bool // function to determine if transition is valid from the given state
 	Callbacks callbacks[Action, State, Param]
 }
 
