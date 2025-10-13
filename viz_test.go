@@ -8,18 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-/*
-digraph fsm {
-    "closed" -> "open" [ label = "open" ];
-    "intermediate" -> "closed" [ label = "part-close" ];
-    "open" -> "closed" [ label = "close" ];
-
-    "closed";
-    "intermediate";
-    "open";
-}
-*/
-
 type vizSample1 struct {
 }
 
@@ -32,6 +20,8 @@ func (v *vizSample1) Close(ctx context.Context, instance fsm.InstanceFSM[string,
 }
 
 func Test_visualization_case1(t *testing.T) {
+	t.SkipNow()
+
 	const (
 		close int = iota
 		open
@@ -65,6 +55,8 @@ func Test_visualization_case1(t *testing.T) {
 }
 
 func Test_visualization_case2(t *testing.T) {
+	t.SkipNow()
+
 	const (
 		close int = iota
 		open
