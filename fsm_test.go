@@ -1,4 +1,4 @@
-package kry_test
+package kry
 
 import (
 	"context"
@@ -6,19 +6,18 @@ import (
 	"fmt"
 	"testing"
 
-	fsm "github.com/rianby64/kry"
 	"github.com/stretchr/testify/require"
 )
 
 func Test_set_initialState_string_ok(t *testing.T) {
-	machine, _ := fsm.New("INITIAL_STATE", []fsm.Transition[string, string, any]{})
+	machine, _ := New("INITIAL_STATE", []Transition[string, string, any]{})
 
 	require.NotNil(t, machine)
 	require.Equal(t, "INITIAL_STATE", machine.Current())
 }
 
 func Test_set_initialState_int_ok(t *testing.T) {
-	machine, _ := fsm.New(1, []fsm.Transition[string, int, any]{})
+	machine, _ := New(1, []Transition[string, int, any]{})
 
 	require.NotNil(t, machine)
 	require.Equal(t, 1, machine.Current())
@@ -30,12 +29,12 @@ func Test_undefined_src_state(t *testing.T) {
 		open
 	)
 
-	machine, err := fsm.New(close, []fsm.Transition[string, int, any]{
+	machine, err := New(close, []Transition[string, int, any]{
 		{Name: "open", Src: []int{close}, Dst: open},
 		{Name: "close", Dst: close},
 	})
 
-	require.ErrorIs(t, err, fsm.ErrNotFound)
+	require.ErrorIs(t, err, ErrNotFound)
 	require.Nil(t, machine)
 }
 
@@ -45,7 +44,7 @@ func Test_set_transitions_string_int_ok(t *testing.T) {
 		open
 	)
 
-	machine, _ := fsm.New(close, []fsm.Transition[string, int, any]{
+	machine, _ := New(close, []Transition[string, int, any]{
 		{Name: "open", Src: []int{close}, Dst: open},
 		{Name: "close", Src: []int{open}, Dst: close},
 	})
@@ -60,7 +59,7 @@ func Test_set_transitions_force_state_ok(t *testing.T) {
 		open
 	)
 
-	machine, _ := fsm.New(close, []fsm.Transition[string, int, any]{
+	machine, _ := New(close, []Transition[string, int, any]{
 		{Name: "open", Src: []int{close}, Dst: open},
 		{Name: "close", Src: []int{open}, Dst: close},
 	})
@@ -76,12 +75,12 @@ func Test_set_transitions_force_incorrect_state_ok(t *testing.T) {
 		incorrect
 	)
 
-	machine, _ := fsm.New(close, []fsm.Transition[string, int, any]{
+	machine, _ := New(close, []Transition[string, int, any]{
 		{Name: "open", Src: []int{close}, Dst: open},
 		{Name: "close", Src: []int{open}, Dst: close},
 	})
 
-	require.ErrorIs(t, machine.ForceState(incorrect), fsm.ErrUnknown)
+	require.ErrorIs(t, machine.ForceState(incorrect), ErrUnknown)
 	require.Equal(t, close, machine.Current())
 }
 
@@ -91,12 +90,12 @@ func Test_incorrect_event(t *testing.T) {
 		open
 	)
 
-	machine, _ := fsm.New(close, []fsm.Transition[string, int, any]{
+	machine, _ := New(close, []Transition[string, int, any]{
 		{Name: "open", Src: []int{close}, Dst: open},
 		{Name: "close", Src: []int{open}, Dst: close},
 	})
 
-	require.ErrorIs(t, machine.Apply(context.TODO(), "incorrect", open), fsm.ErrUnknown)
+	require.ErrorIs(t, machine.Apply(context.TODO(), "incorrect", open), ErrUnknown)
 	require.Equal(t, close, machine.Current())
 }
 
@@ -107,12 +106,12 @@ func Test_incorrect_state(t *testing.T) {
 		initial
 	)
 
-	machine, _ := fsm.New(close, []fsm.Transition[string, int, any]{
+	machine, _ := New(close, []Transition[string, int, any]{
 		{Name: "open", Src: []int{initial}, Dst: open},
 		{Name: "close", Src: []int{open}, Dst: close},
 	})
 
-	require.ErrorIs(t, machine.Apply(context.TODO(), "open", open), fsm.ErrNotFound)
+	require.ErrorIs(t, machine.Apply(context.TODO(), "open", open), ErrNotFound)
 	require.Equal(t, close, machine.Current())
 }
 
@@ -128,13 +127,13 @@ func Test_execute_Enter_one_time_one_parameter(t *testing.T) {
 
 	var calledEnter bool
 
-	machine, _ := fsm.New(
+	machine, _ := New(
 		close, // Initial state
-		[]fsm.Transition[string, int, Param]{
+		[]Transition[string, int, Param]{
 			{
 				Name: "open",
 				Src:  []int{close}, Dst: open,
-				Enter: func(ctx context.Context, instance fsm.InstanceFSM[string, int, Param], param Param) error {
+				Enter: func(ctx context.Context, instance InstanceFSM[string, int, Param], param Param) error {
 					require.Equal(t, "test", param.Value)
 					require.Equal(t, open, instance.Current())
 
@@ -145,7 +144,7 @@ func Test_execute_Enter_one_time_one_parameter(t *testing.T) {
 			{
 				Name: "close",
 				Src:  []int{open}, Dst: close,
-				Enter: func(ctx context.Context, instance fsm.InstanceFSM[string, int, Param], param Param) error {
+				Enter: func(ctx context.Context, instance InstanceFSM[string, int, Param], param Param) error {
 					t.Log("should not be called")
 					t.FailNow()
 					return nil
@@ -165,13 +164,13 @@ func Test_execute_force_state(t *testing.T) {
 		open
 	)
 
-	machine, _ := fsm.New(
+	machine, _ := New(
 		close, // Initial state
-		[]fsm.Transition[string, int, any]{
+		[]Transition[string, int, any]{
 			{
 				Name: "open",
 				Src:  []int{close}, Dst: open,
-				EnterVariadic: func(ctx context.Context, instance fsm.InstanceFSM[string, int, any], param ...any) error {
+				EnterVariadic: func(ctx context.Context, instance InstanceFSM[string, int, any], param ...any) error {
 					require.Equal(t, open, instance.Current())
 					require.NoError(t, instance.ForceState(close))
 					return nil
@@ -180,7 +179,7 @@ func Test_execute_force_state(t *testing.T) {
 			{
 				Name: "close",
 				Src:  []int{open}, Dst: close,
-				EnterVariadic: func(ctx context.Context, instance fsm.InstanceFSM[string, int, any], param ...any) error {
+				EnterVariadic: func(ctx context.Context, instance InstanceFSM[string, int, any], param ...any) error {
 					t.Log("should not be called")
 					t.FailNow()
 					return nil
@@ -202,13 +201,13 @@ func Test_execute_event_case2(t *testing.T) {
 	enterOpenCalledTimes := 0
 	enterCloseCalledTimes := 0
 
-	machine, _ := fsm.New(
+	machine, _ := New(
 		close, // Initial state
-		[]fsm.Transition[string, int, any]{
+		[]Transition[string, int, any]{
 			{
 				Name: "open",
 				Src:  []int{open, close}, Dst: open,
-				EnterVariadic: func(ctx context.Context, instance fsm.InstanceFSM[string, int, any], param ...any) error {
+				EnterVariadic: func(ctx context.Context, instance InstanceFSM[string, int, any], param ...any) error {
 					enterOpenCalledTimes++
 					return nil
 				},
@@ -216,7 +215,7 @@ func Test_execute_event_case2(t *testing.T) {
 			{
 				Name: "close",
 				Src:  []int{open}, Dst: close,
-				EnterVariadic: func(ctx context.Context, instance fsm.InstanceFSM[string, int, any], param ...any) error {
+				EnterVariadic: func(ctx context.Context, instance InstanceFSM[string, int, any], param ...any) error {
 					enterCloseCalledTimes++
 					return nil
 				},
@@ -247,13 +246,13 @@ func Test_failed_enter_OK(t *testing.T) {
 	enterOpenCalledTimes := 0
 	enterCloseCalledTimes := 0
 
-	machine, _ := fsm.New(
+	machine, _ := New(
 		close, // Initial state
-		[]fsm.Transition[string, int, any]{
+		[]Transition[string, int, any]{
 			{
 				Name: "open",
 				Src:  []int{open, close}, Dst: open,
-				EnterVariadic: func(ctx context.Context, instance fsm.InstanceFSM[string, int, any], param ...any) error {
+				EnterVariadic: func(ctx context.Context, instance InstanceFSM[string, int, any], param ...any) error {
 					enterOpenCalledTimes++
 					return nil
 				},
@@ -261,7 +260,7 @@ func Test_failed_enter_OK(t *testing.T) {
 			{
 				Name: "close",
 				Src:  []int{open}, Dst: close,
-				EnterVariadic: func(ctx context.Context, instance fsm.InstanceFSM[string, int, any], param ...any) error {
+				EnterVariadic: func(ctx context.Context, instance InstanceFSM[string, int, any], param ...any) error {
 					enterCloseCalledTimes++
 					return expectedError
 				},
@@ -297,22 +296,22 @@ func Test_execute_different_variadics(t *testing.T) {
 		calledCloseEnterVariadic int
 	)
 
-	machine, _ := fsm.New(
+	machine, _ := New(
 		close, // Initial state
-		[]fsm.Transition[string, int, int]{
+		[]Transition[string, int, int]{
 			{
 				Name: "open",
 				Src:  []int{close}, Dst: open,
-				EnterNoParams: func(ctx context.Context, instance fsm.InstanceFSM[string, int, int]) error {
+				EnterNoParams: func(ctx context.Context, instance InstanceFSM[string, int, int]) error {
 					calledOpenEnterNoParams++
 					return nil
 				},
-				Enter: func(ctx context.Context, instance fsm.InstanceFSM[string, int, int], param int) error {
+				Enter: func(ctx context.Context, instance InstanceFSM[string, int, int], param int) error {
 					calledOpenEnter++
 					require.Equal(t, 1, param)
 					return nil
 				},
-				EnterVariadic: func(ctx context.Context, instance fsm.InstanceFSM[string, int, int], param ...int) error {
+				EnterVariadic: func(ctx context.Context, instance InstanceFSM[string, int, int], param ...int) error {
 					calledOpenEnterVariadic++
 					require.Equal(t, 2, len(param))
 					require.Equal(t, 3, param[0])
@@ -323,16 +322,16 @@ func Test_execute_different_variadics(t *testing.T) {
 			{
 				Name: "close",
 				Src:  []int{open}, Dst: close,
-				EnterNoParams: func(ctx context.Context, instance fsm.InstanceFSM[string, int, int]) error {
+				EnterNoParams: func(ctx context.Context, instance InstanceFSM[string, int, int]) error {
 					calledCloseEnterNoParams++
 					return nil
 				},
-				Enter: func(ctx context.Context, instance fsm.InstanceFSM[string, int, int], param int) error {
+				Enter: func(ctx context.Context, instance InstanceFSM[string, int, int], param int) error {
 					calledCloseEnter++
 					require.Equal(t, 2, param)
 					return nil
 				},
-				EnterVariadic: func(ctx context.Context, instance fsm.InstanceFSM[string, int, int], param ...int) error {
+				EnterVariadic: func(ctx context.Context, instance InstanceFSM[string, int, int], param ...int) error {
 					calledCloseEnterVariadic++
 					require.Equal(t, 2, len(param))
 					require.Equal(t, 5, param[0])
@@ -374,7 +373,7 @@ func Test_set_state_undefined_case1(t *testing.T) {
 		open
 	)
 
-	machine, _ := fsm.New(close, []fsm.Transition[string, int, any]{
+	machine, _ := New(close, []Transition[string, int, any]{
 		{Name: "open", Src: []int{close}, Dst: open},
 		{Name: "close", Src: []int{open}, Dst: close},
 	})
@@ -390,7 +389,7 @@ func Test_set_state_undefined_case2(t *testing.T) {
 		open
 	)
 
-	machine, _ := fsm.New(close, []fsm.Transition[string, int, any]{
+	machine, _ := New(close, []Transition[string, int, any]{
 		{Name: "open", Src: []int{close}, Dst: open},
 		{Name: "close", Src: []int{open}, Dst: close},
 	})
@@ -405,10 +404,10 @@ func Test_set_state_undefined_case3(t *testing.T) {
 		open
 	)
 
-	machine, _ := fsm.New(close, []fsm.Transition[string, int, any]{
+	machine, _ := New(close, []Transition[string, int, any]{
 		{
 			Name: "open", Src: []int{close}, Dst: open,
-			EnterVariadic: func(ctx context.Context, instance fsm.InstanceFSM[string, int, any], param ...any) error {
+			EnterVariadic: func(ctx context.Context, instance InstanceFSM[string, int, any], param ...any) error {
 				require.Equal(t, 1, param[0])
 				return nil
 			},
@@ -435,31 +434,31 @@ func Test_set_transitions_retrigger_ok(t *testing.T) {
 		calledClose int
 	)
 
-	machine, _ := fsm.New(close, []fsm.Transition[string, int, any]{
+	machine, _ := New(close, []Transition[string, int, any]{
 		{
 			Name: "open", Src: []int{close, open}, Dst: roger,
-			EnterNoParams: func(ctx context.Context, instance fsm.InstanceFSM[string, int, any]) error {
+			EnterNoParams: func(ctx context.Context, instance InstanceFSM[string, int, any]) error {
 				calledOpen++
 				return nil
 			},
 		},
 		{
 			Name: "open", Src: []int{roger}, Dst: open,
-			EnterNoParams: func(ctx context.Context, instance fsm.InstanceFSM[string, int, any]) error {
+			EnterNoParams: func(ctx context.Context, instance InstanceFSM[string, int, any]) error {
 				calledReopen++
 				return nil
 			},
 		},
 		{
 			Name: "close", Src: []int{roger, open}, Dst: close,
-			EnterNoParams: func(ctx context.Context, instance fsm.InstanceFSM[string, int, any]) error {
+			EnterNoParams: func(ctx context.Context, instance InstanceFSM[string, int, any]) error {
 				calledClose++
 				return nil
 			},
 		},
 	})
 
-	require.ErrorIs(t, machine.Event(context.TODO(), "open"), fsm.ErrNotAllowed)
+	require.ErrorIs(t, machine.Event(context.TODO(), "open"), ErrNotAllowed)
 
 	require.NoError(t, machine.Apply(context.TODO(), "open", roger))
 	require.Equal(t, roger, machine.Current())
@@ -485,7 +484,7 @@ func Test_set_repeated_transitions_panic(t *testing.T) {
 		open
 	)
 
-	machine, err := fsm.New(close, []fsm.Transition[string, int, any]{
+	machine, err := New(close, []Transition[string, int, any]{
 		{
 			Name: "open", Src: []int{close, open}, Dst: roger,
 		},
@@ -498,7 +497,7 @@ func Test_set_repeated_transitions_panic(t *testing.T) {
 	})
 
 	require.Nil(t, machine)
-	require.ErrorIs(t, err, fsm.ErrRepeated)
+	require.ErrorIs(t, err, ErrRepeated)
 }
 
 func Test_set_event_ok(t *testing.T) {
@@ -507,7 +506,7 @@ func Test_set_event_ok(t *testing.T) {
 		open
 	)
 
-	machine, err := fsm.New(close, []fsm.Transition[string, int, any]{
+	machine, err := New(close, []Transition[string, int, any]{
 		{
 			Name: "open", Src: []int{close}, Dst: open,
 		},
@@ -534,13 +533,13 @@ func Test_transite_incorrect_event_ok(t *testing.T) {
 
 	errExpected := errors.New("expected error")
 
-	machine, err := fsm.New(close, []fsm.Transition[string, int, any]{
+	machine, err := New(close, []Transition[string, int, any]{
 		{
 			Name: "open", Src: []int{close}, Dst: open,
 		},
 		{
 			Name: "close", Src: []int{open}, Dst: close,
-			EnterNoParams: func(ctx context.Context, instance fsm.InstanceFSM[string, int, any]) error {
+			EnterNoParams: func(ctx context.Context, instance InstanceFSM[string, int, any]) error {
 				return errExpected
 			},
 		},
@@ -552,7 +551,7 @@ func Test_transite_incorrect_event_ok(t *testing.T) {
 	require.NoError(t, machine.Event(context.TODO(), "open"))
 	require.Equal(t, open, machine.Current())
 
-	require.ErrorIs(t, machine.Event(context.TODO(), "incorrect"), fsm.ErrUnknown)
+	require.ErrorIs(t, machine.Event(context.TODO(), "incorrect"), ErrUnknown)
 	require.Equal(t, open, machine.Current())
 
 	require.ErrorIs(t, machine.Event(context.TODO(), "close"), errExpected)
@@ -570,10 +569,10 @@ func Test_loop_case_1(t *testing.T) {
 	calledRoger := 0
 	calledClose := 0
 
-	machine, _ := fsm.New(close, []fsm.Transition[string, int, any]{
+	machine, _ := New(close, []Transition[string, int, any]{
 		{
 			Name: "open", Src: []int{close}, Dst: open,
-			EnterNoParams: func(ctx context.Context, instance fsm.InstanceFSM[string, int, any]) error {
+			EnterNoParams: func(ctx context.Context, instance InstanceFSM[string, int, any]) error {
 				if calledOpen > 0 {
 					t.Log("open should not be called more than one time")
 					t.FailNow()
@@ -584,7 +583,7 @@ func Test_loop_case_1(t *testing.T) {
 		},
 		{
 			Name: "roger", Src: []int{open, close}, Dst: roger,
-			EnterNoParams: func(ctx context.Context, instance fsm.InstanceFSM[string, int, any]) error {
+			EnterNoParams: func(ctx context.Context, instance InstanceFSM[string, int, any]) error {
 				if calledRoger > 0 {
 					t.Log("roger should not be called more than one time")
 					t.FailNow()
@@ -595,7 +594,7 @@ func Test_loop_case_1(t *testing.T) {
 		},
 		{
 			Name: "close", Src: []int{roger, open}, Dst: close,
-			EnterNoParams: func(ctx context.Context, instance fsm.InstanceFSM[string, int, any]) error {
+			EnterNoParams: func(ctx context.Context, instance InstanceFSM[string, int, any]) error {
 				if calledClose > 0 {
 					t.Log("close should not be called more than one time")
 					t.FailNow()
@@ -624,10 +623,10 @@ func Test_loop_case_infinity_break(t *testing.T) {
 	calledRoger := 0
 	calledClose := 0
 
-	machine, _ := fsm.New(close, []fsm.Transition[string, int, any]{
+	machine, _ := New(close, []Transition[string, int, any]{
 		{
 			Name: "open", Src: []int{close}, Dst: open,
-			EnterNoParams: func(ctx context.Context, instance fsm.InstanceFSM[string, int, any]) error {
+			EnterNoParams: func(ctx context.Context, instance InstanceFSM[string, int, any]) error {
 				if calledOpen > 0 {
 					t.Log("open should not be called more than one time")
 					t.FailNow()
@@ -638,7 +637,7 @@ func Test_loop_case_infinity_break(t *testing.T) {
 		},
 		{
 			Name: "roger", Src: []int{open, close}, Dst: roger,
-			EnterNoParams: func(ctx context.Context, instance fsm.InstanceFSM[string, int, any]) error {
+			EnterNoParams: func(ctx context.Context, instance InstanceFSM[string, int, any]) error {
 				if calledRoger > 0 {
 					t.Log("roger should not be called more than one time")
 					t.FailNow()
@@ -649,7 +648,7 @@ func Test_loop_case_infinity_break(t *testing.T) {
 		},
 		{
 			Name: "close", Src: []int{roger, open}, Dst: close,
-			EnterNoParams: func(ctx context.Context, instance fsm.InstanceFSM[string, int, any]) error {
+			EnterNoParams: func(ctx context.Context, instance InstanceFSM[string, int, any]) error {
 				if calledClose > 0 {
 					t.Log("close should not be called more than one time")
 					t.FailNow()
@@ -660,7 +659,7 @@ func Test_loop_case_infinity_break(t *testing.T) {
 		},
 	})
 
-	require.ErrorIs(t, machine.Apply(context.TODO(), "open", open), fsm.ErrLoopFound)
+	require.ErrorIs(t, machine.Apply(context.TODO(), "open", open), ErrLoopFound)
 	require.Equal(t, close, machine.Current())
 	require.Equal(t, 1, calledOpen)
 	require.Equal(t, 1, calledRoger)
@@ -675,16 +674,16 @@ func Test_loop_case_infinity_break_two_machines(t *testing.T) {
 
 	var (
 		machine1,
-		machine2 *fsm.FSM[string, int, any]
+		machine2 *FSM[string, int, any]
 	)
 
 	calledOpen1 := 0
 	calledOpen2 := 0
 
-	machine1, _ = fsm.New(close, []fsm.Transition[string, int, any]{
+	machine1, _ = New(close, []Transition[string, int, any]{
 		{
 			Name: "open", Src: []int{close}, Dst: open,
-			EnterNoParams: func(ctx context.Context, instance fsm.InstanceFSM[string, int, any]) error {
+			EnterNoParams: func(ctx context.Context, instance InstanceFSM[string, int, any]) error {
 				if calledOpen1 > 0 {
 					t.Log("open should not be called more than one time")
 					t.FailNow()
@@ -695,10 +694,10 @@ func Test_loop_case_infinity_break_two_machines(t *testing.T) {
 		},
 	})
 
-	machine2, _ = fsm.New(close, []fsm.Transition[string, int, any]{
+	machine2, _ = New(close, []Transition[string, int, any]{
 		{
 			Name: "open", Src: []int{close}, Dst: open,
-			EnterNoParams: func(ctx context.Context, instance fsm.InstanceFSM[string, int, any]) error {
+			EnterNoParams: func(ctx context.Context, instance InstanceFSM[string, int, any]) error {
 				if calledOpen2 > 0 {
 					t.Log("open should not be called more than one time")
 					t.FailNow()
@@ -732,7 +731,7 @@ func Test_set_transitions_match_fn(t *testing.T) {
 	calledRogerMatch := false
 
 	ctx := context.TODO()
-	transitions := []fsm.Transition[string, int, any]{
+	transitions := []Transition[string, int, any]{
 		{
 			Name: "open-slightly",
 			Src:  []int{close},
@@ -753,7 +752,7 @@ func Test_set_transitions_match_fn(t *testing.T) {
 			Name: "roger",
 			Src:  []int{open1},
 			Dst:  roger1,
-			EnterNoParams: func(ctx context.Context, instance fsm.InstanceFSM[string, int, any]) error {
+			EnterNoParams: func(ctx context.Context, instance InstanceFSM[string, int, any]) error {
 				calledRoger1 = true
 
 				return nil
@@ -765,7 +764,7 @@ func Test_set_transitions_match_fn(t *testing.T) {
 				return open1 <= state && state <= open3
 			},
 			Dst: roger3,
-			EnterNoParams: func(ctx context.Context, instance fsm.InstanceFSM[string, int, any]) error {
+			EnterNoParams: func(ctx context.Context, instance InstanceFSM[string, int, any]) error {
 				calledRogerMatch = true
 
 				return nil
@@ -778,14 +777,14 @@ func Test_set_transitions_match_fn(t *testing.T) {
 				return roger1 <= state && state <= roger3
 			},
 			Dst: close,
-			EnterNoParams: func(ctx context.Context, instance fsm.InstanceFSM[string, int, any]) error {
+			EnterNoParams: func(ctx context.Context, instance InstanceFSM[string, int, any]) error {
 				calledClosed = true
 
 				return nil
 			},
 		},
 	}
-	machine, errConstructor := fsm.New(close, transitions)
+	machine, errConstructor := New(close, transitions)
 	require.NoError(t, errConstructor)
 
 	require.NoError(t, machine.Apply(ctx, "open-full", open3))
@@ -818,7 +817,7 @@ func Test_set_transitions_match_fn_error(t *testing.T) {
 
 	expectedError := fmt.Errorf("expected error")
 	ctx := context.TODO()
-	transitions := []fsm.Transition[string, int, any]{
+	transitions := []Transition[string, int, any]{
 		{
 			Name: "open-slightly",
 			Src:  []int{close},
@@ -841,7 +840,7 @@ func Test_set_transitions_match_fn_error(t *testing.T) {
 				return open1 <= state && state <= open3
 			},
 			Dst: roger,
-			EnterNoParams: func(ctx context.Context, instance fsm.InstanceFSM[string, int, any]) error {
+			EnterNoParams: func(ctx context.Context, instance InstanceFSM[string, int, any]) error {
 				return expectedError
 			},
 		},
@@ -852,7 +851,7 @@ func Test_set_transitions_match_fn_error(t *testing.T) {
 			Dst:  close,
 		},
 	}
-	machine, errConstructor := fsm.New(close, transitions)
+	machine, errConstructor := New(close, transitions)
 	require.NoError(t, errConstructor)
 
 	require.NoError(t, machine.Apply(ctx, "open-full", open3))

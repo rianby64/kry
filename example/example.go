@@ -36,7 +36,7 @@ func main() {
 			Src:  []int{open},
 			Dst:  close,
 		},
-	})
+	}, kry.WithFullHistory())
 	if err != nil {
 		panic(err)
 	}

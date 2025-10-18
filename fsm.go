@@ -68,14 +68,20 @@ type FSM[Action, State comparable, Param any] struct {
 
 	events           map[Action]Transition[Action, State, Param]
 	canTriggerEvents bool
-
-	gaphic string
+	graphic          string
+	historyKeeper    *historyKeeper[Action, State, Param]
 }
 
 func New[Action, State comparable, Param any](
-	initialState State,
-	transitions []Transition[Action, State, Param],
+	initialState State, // I don't want to allow this value to change after creation
+	transitions []Transition[Action, State, Param], // also immutable after creation
+	options ...func(o *Options) *Options,
 ) (*FSM[Action, State, Param], error) {
+	finalOptions := &Options{}
+	for _, opt := range options {
+		finalOptions = opt(finalOptions)
+	}
+
 	path, pathByMatch, states, events,
 		canTriggerEvents, err := constructFromTransitions(initialState, transitions)
 	if err != nil {
@@ -99,12 +105,13 @@ func New[Action, State comparable, Param any](
 
 		events:           events,
 		canTriggerEvents: canTriggerEvents,
-		gaphic:           graphic,
+		graphic:          graphic,
+		historyKeeper:    newHistoryKeeper[Action, State, Param](finalOptions.historySize),
 	}, nil
 }
 
 func (fsk *FSM[Action, State, Param]) String() string {
-	return fsk.gaphic
+	return fsk.graphic
 }
 
 func (fsk *FSM[Action, State, Param]) Current() State {

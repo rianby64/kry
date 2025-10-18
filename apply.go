@@ -14,11 +14,21 @@ func (fsk *FSM[Action, State, Param]) apply(
 ) error {
 	fsk.currentState = newState
 
-	if err := fsk.switchEventByLengthParams(ctx, callbacks, param...); err != nil {
+	if err, errOrig := fsk.switchEventByLengthParams(ctx, callbacks, param...); err != nil {
 		fsk.currentState = currentState
+
+		if errHistory := fsk.historyKeeper.
+			Push(action, currentState, newState, errOrig, param...); errHistory != nil {
+			err = fmt.Errorf("%w: failed to push history item: %w", err, errHistory)
+		}
 
 		return fmt.Errorf("failed to apply (%v) from '%v' to '%v': %w",
 			action, currentState, newState, err)
+	}
+
+	if errHistory := fsk.historyKeeper.
+		Push(action, currentState, newState, nil, param...); errHistory != nil {
+		return fmt.Errorf("failed to push history item: %w", errHistory)
 	}
 
 	return nil
@@ -70,36 +80,36 @@ func (fsk *FSM[Action, State, Param]) applyByMatch(ctx context.Context, action A
 	return false, nil
 }
 
-func (fsk *FSM[Action, State, Param]) switchEventByLengthParams(ctx context.Context, stateTransition callbacks[Action, State, Param], param ...Param) error {
+func (fsk *FSM[Action, State, Param]) switchEventByLengthParams(ctx context.Context, stateTransition callbacks[Action, State, Param], param ...Param) (error, error) {
 	switch len(param) {
 	case 0:
 		if stateTransition.EnterNoParams != nil {
 			if err := stateTransition.EnterNoParams(ctx, fsk); err != nil {
-				return fmt.Errorf("failed to execute enter (no-params) callback: %w", err)
+				return fmt.Errorf("failed to execute enter (no-params) callback: %w", err), err
 			}
 
-			return nil
+			return nil, nil
 		}
 
 	case 1:
 		if stateTransition.Enter != nil {
 			if err := stateTransition.Enter(ctx, fsk, param[0]); err != nil {
-				return fmt.Errorf("failed to execute enter (single-param) callback: %w", err)
+				return fmt.Errorf("failed to execute enter (single-param) callback: %w", err), err
 			}
 
-			return nil
+			return nil, nil
 		}
 	}
 
 	if stateTransition.EnterVariadic != nil {
 		if err := stateTransition.EnterVariadic(ctx, fsk, param...); err != nil {
-			return fmt.Errorf("failed to execute enter (variadic) callback: %w", err)
+			return fmt.Errorf("failed to execute enter (variadic) callback: %w", err), err
 		}
 
-		return nil
+		return nil, nil
 	}
 
-	return nil
+	return nil, nil
 }
 
 func (fsk *FSM[Action, State, Param]) Event(ctx context.Context, action Action, param ...Param) error {
@@ -145,5 +155,11 @@ func (fsk *FSM[Action, State, Param]) Apply(ctx context.Context, action Action, 
 		return nil
 	}
 
-	return fmt.Errorf("transition (%v) from state %w: %v", action, ErrNotFound, currentState)
+	err = ErrNotFound
+	errHistory := fsk.historyKeeper.Push(action, currentState, newState, ErrNotFound, param...)
+	if errHistory != nil {
+		err = fmt.Errorf("%w: failed to push history item: %w", err, errHistory)
+	}
+
+	return fmt.Errorf("transition (%v) from state %v: %w", action, currentState, err)
 }
