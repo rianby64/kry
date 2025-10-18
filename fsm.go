@@ -67,10 +67,11 @@ type FSM[Action, State comparable, Param any] struct {
 	path          map[Action]map[State]map[State]callbacks[Action, State, Param] // action -> dst state -> src state -> callbacks
 	pathByMatch   map[Action]map[State][]matchState[Action, State, Param]        // action -> dst state -> list of match conditions for dst states
 
-	events           map[Action]Transition[Action, State, Param]
-	canTriggerEvents bool
-	graphic          string
-	historyKeeper    *historyKeeper[Action, State, Param]
+	events              map[Action]Transition[Action, State, Param]
+	canTriggerEvents    bool
+	graphic             string
+	historyKeeper       *historyKeeper[Action, State, Param]
+	forcedHistoryKeeper *historyKeeper[Action, State, Param]
 }
 
 func New[Action, State comparable, Param any](
@@ -104,10 +105,11 @@ func New[Action, State comparable, Param any](
 		pathByMatch:  pathByMatch,
 		states:       states,
 
-		events:           events,
-		canTriggerEvents: canTriggerEvents,
-		graphic:          graphic,
-		historyKeeper:    newHistoryKeeper[Action, State, Param](finalOptions.historySize),
+		events:              events,
+		canTriggerEvents:    canTriggerEvents,
+		graphic:             graphic,
+		historyKeeper:       newHistoryKeeper[Action, State, Param](finalOptions.historySize),
+		forcedHistoryKeeper: newHistoryKeeper[Action, State, Param](finalOptions.historySize),
 	}, nil
 }
 
@@ -129,7 +131,7 @@ func (fsk *FSM[Action, State, Param]) ForceState(state State) error {
 	currentAction := fsk.currentAction
 	fsk.currentState = state
 
-	if errHistory := fsk.historyKeeper.
+	if errHistory := fsk.forcedHistoryKeeper.
 		PushForced(currentAction, currentState, state, nil); errHistory != nil {
 		return fmt.Errorf("failed to push history item: %w", errHistory)
 	}

@@ -429,7 +429,7 @@ func Test_history_in_machine_with_force_state(t *testing.T) {
 			To:     close,
 			Params: nil,
 			Error:  nil,
-			Forced: true, // TODO: track the forced state changes to be AFTER the transition
+			Forced: true,
 		},
 		{
 			Action: "open",
@@ -527,7 +527,7 @@ func Test_history_in_machine_with_multiple_force_state(t *testing.T) {
 			To:     close,
 			Params: nil,
 			Error:  nil,
-			Forced: true, // TODO: track the forced state changes to be AFTER the transition
+			Forced: true,
 		},
 		{
 			Action: "open",
@@ -535,7 +535,7 @@ func Test_history_in_machine_with_multiple_force_state(t *testing.T) {
 			To:     roger,
 			Params: nil,
 			Error:  nil,
-			Forced: true, // TODO: track the forced state changes to be AFTER the transition
+			Forced: true,
 		},
 		{
 			Action: "open",

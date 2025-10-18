@@ -1,6 +1,10 @@
 package kry
 
-import "github.com/fxamacker/cbor/v2"
+import (
+	"fmt"
+
+	"github.com/fxamacker/cbor/v2"
+)
 
 const (
 	fullHistorySize = -1
@@ -115,6 +119,51 @@ func (hk *historyKeeper[Action, State, Param]) Items() []HistoryItem[Action, Sta
 	}
 
 	return items
+}
+
+func (hk *historyKeeper[Action, State, Param]) Append(other *historyKeeper[Action, State, Param]) {
+	hk.tail.Next = other.head
+	hk.tail = other.tail
+	hk.length += other.length
+
+	if hk.maxLength > 0 && hk.length > hk.maxLength { // TODO: test this
+		excess := hk.length - hk.maxLength
+		current := hk.head
+
+		for range excess {
+			current = current.Next
+		}
+
+		hk.head = current
+		hk.length = hk.maxLength
+	}
+}
+
+func (hk *historyKeeper[Action, State, Param]) Clear() {
+	hk.head = nil
+	hk.tail = nil
+	hk.length = 0
+}
+
+// the following methods are added to FSM because they relate to history management
+
+func (fsk *FSM[Action, State, Param]) keepForcedHistory(
+	action Action,
+	currentState, newState State,
+	err error,
+	param ...Param,
+) error {
+	if fsk.forcedHistoryKeeper.length > 0 {
+		fsk.historyKeeper.Append(fsk.forcedHistoryKeeper)
+		fsk.forcedHistoryKeeper.Clear()
+	}
+
+	if errHistory := fsk.historyKeeper.
+		Push(action, currentState, newState, err, param...); errHistory != nil {
+		return fmt.Errorf("failed to push history item: %w", errHistory)
+	}
+
+	return nil
 }
 
 func (fsk *FSM[Action, State, Param]) History() []HistoryItem[Action, State, Param] {

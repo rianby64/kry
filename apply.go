@@ -20,21 +20,17 @@ func (fsk *FSM[Action, State, Param]) apply(
 		fsk.currentAction = oldAction
 		fsk.currentState = currentState
 
-		if errHistory := fsk.historyKeeper.
-			Push(action, currentState, newState, errOrig, param...); errHistory != nil {
-			err = fmt.Errorf("%w: failed to push history item: %w", err, errHistory)
+		// TODO: test that history is kept even on error
+		errHistory := fsk.keepForcedHistory(action, currentState, newState, errOrig, param...)
+		if errHistory != nil {
+			err = fmt.Errorf("%w: %w", err, errHistory)
 		}
 
 		return fmt.Errorf("failed to apply (%v) from '%v' to '%v': %w",
 			action, currentState, newState, err)
 	}
 
-	if errHistory := fsk.historyKeeper.
-		Push(action, currentState, newState, nil, param...); errHistory != nil {
-		return fmt.Errorf("failed to push history item: %w", errHistory)
-	}
-
-	return nil
+	return fsk.keepForcedHistory(action, currentState, newState, nil, param...)
 }
 
 func (fsk *FSM[Action, State, Param]) applyByExact(ctx context.Context, action Action, newState State, param ...Param) (bool, error) {
