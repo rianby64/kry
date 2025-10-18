@@ -12,9 +12,12 @@ func (fsk *FSM[Action, State, Param]) apply(
 	currentState, newState State,
 	param ...Param,
 ) error {
+	oldAction := fsk.currentAction
+	fsk.currentAction = action
 	fsk.currentState = newState
 
 	if err, errOrig := fsk.switchEventByLengthParams(ctx, callbacks, param...); err != nil {
+		fsk.currentAction = oldAction
 		fsk.currentState = currentState
 
 		if errHistory := fsk.historyKeeper.

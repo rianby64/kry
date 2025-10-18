@@ -55,6 +55,14 @@ func cloneParams[Param any](params ...Param) ([]Param, error) {
 }
 
 func (hk *historyKeeper[Action, State, Param]) Push(action Action, from State, to State, err error, params ...Param) error {
+	return hk.push(action, from, to, err, false, params...)
+}
+
+func (hk *historyKeeper[Action, State, Param]) PushForced(action Action, from State, to State, err error, params ...Param) error {
+	return hk.push(action, from, to, err, true, params...)
+}
+
+func (hk *historyKeeper[Action, State, Param]) push(action Action, from State, to State, err error, forced bool, params ...Param) error {
 	if hk.maxLength == 0 {
 		return nil
 	}
@@ -71,6 +79,7 @@ func (hk *historyKeeper[Action, State, Param]) Push(action Action, from State, t
 			To:     to,
 			Params: cloneParams,
 			Error:  err,
+			Forced: forced,
 		},
 	}
 

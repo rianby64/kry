@@ -60,11 +60,12 @@ type matchState[Action, State comparable, Param any] struct {
 }
 
 type FSM[Action, State comparable, Param any] struct {
-	id           uint64
-	currentState State
-	states       map[State]struct{}
-	path         map[Action]map[State]map[State]callbacks[Action, State, Param] // action -> dst state -> src state -> callbacks
-	pathByMatch  map[Action]map[State][]matchState[Action, State, Param]        // action -> dst state -> list of match conditions for dst states
+	id            uint64
+	currentState  State
+	currentAction Action
+	states        map[State]struct{}
+	path          map[Action]map[State]map[State]callbacks[Action, State, Param] // action -> dst state -> src state -> callbacks
+	pathByMatch   map[Action]map[State][]matchState[Action, State, Param]        // action -> dst state -> list of match conditions for dst states
 
 	events           map[Action]Transition[Action, State, Param]
 	canTriggerEvents bool
@@ -124,7 +125,14 @@ func (fsk *FSM[Action, State, Param]) ForceState(state State) error {
 		return fmt.Errorf("state %w: %v", ErrUnknown, state)
 	}
 
+	currentState := fsk.currentState
+	currentAction := fsk.currentAction
 	fsk.currentState = state
+
+	if errHistory := fsk.historyKeeper.
+		PushForced(currentAction, currentState, state, nil); errHistory != nil {
+		return fmt.Errorf("failed to push history item: %w", errHistory)
+	}
 
 	return nil
 }

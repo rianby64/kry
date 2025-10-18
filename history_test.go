@@ -367,3 +367,98 @@ func Test_history_in_machine_with_incorrect_transition_error(t *testing.T) {
 	}
 	require.Equal(t, expectedHistory, machine.History())
 }
+
+func Test_history_in_machine_with_force_state(t *testing.T) {
+	const (
+		close int = iota
+		roger
+		open
+	)
+
+	machine, _ := New(close, []Transition[string, int, string]{
+		{
+			Name: "roger",
+			Src:  []int{close},
+			Dst:  roger,
+		},
+		{
+			Name: "open",
+			Src:  []int{roger},
+			Dst:  open,
+			Enter: func(ctx context.Context, fsm InstanceFSM[string, int, string], param string) error {
+				if param == "force-close" {
+					return fsm.ForceState(close)
+				}
+
+				return nil
+			},
+		},
+		{
+			Name: "close",
+			Src:  []int{open},
+			Dst:  close,
+		},
+	}, WithFullHistory())
+
+	require.NoError(t, machine.Apply(context.TODO(), "roger", roger))
+	require.Equal(t, roger, machine.Current())
+
+	require.NoError(t, machine.Apply(context.TODO(), "open", open, "force-close"))
+	require.Equal(t, close, machine.Current())
+
+	require.NoError(t, machine.Apply(context.TODO(), "roger", roger))
+	require.Equal(t, roger, machine.Current())
+
+	require.NoError(t, machine.Apply(context.TODO(), "open", open))
+	require.Equal(t, open, machine.Current())
+
+	require.NoError(t, machine.Apply(context.TODO(), "close", close))
+	require.Equal(t, close, machine.Current())
+
+	expectedHistory := []HistoryItem[string, int, string]{
+		{
+			Action: "roger",
+			From:   close,
+			To:     roger,
+			Params: nil,
+			Error:  nil,
+		},
+		{
+			Action: "open",
+			From:   open,
+			To:     close,
+			Params: nil,
+			Error:  nil,
+			Forced: true, // TODO: track the forced state changes to be AFTER the transition
+		},
+		{
+			Action: "open",
+			From:   roger,
+			To:     open,
+			Params: []string{"force-close"},
+			Error:  nil,
+		},
+		{
+			Action: "roger",
+			From:   close,
+			To:     roger,
+			Params: nil,
+			Error:  nil,
+		},
+		{
+			Action: "open",
+			From:   roger,
+			To:     open,
+			Params: nil,
+			Error:  nil,
+		},
+		{
+			Action: "close",
+			From:   open,
+			To:     close,
+			Params: nil,
+			Error:  nil,
+		},
+	}
+	require.Equal(t, expectedHistory, machine.History())
+}
