@@ -1,9 +1,8 @@
 package kry
 
 import (
+	"encoding/json"
 	"fmt"
-
-	"github.com/fxamacker/cbor/v2"
 )
 
 type HistoryItem[Action, State comparable, Param any] struct {
@@ -41,13 +40,13 @@ func cloneParams[Param any](params ...Param) ([]Param, error) {
 		return nil, nil
 	}
 
-	data, err := cbor.Marshal(params)
+	data, err := json.Marshal(params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal params: %w", err)
 	}
 
 	var cloned []Param
-	if err := cbor.Unmarshal(data, &cloned); err != nil {
+	if err := json.Unmarshal(data, &cloned); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal params: %w", err)
 	}
 
