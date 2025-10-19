@@ -74,9 +74,14 @@ type FSM[Action, State comparable, Param any] struct {
 	forcedHistoryKeeper *historyKeeper[Action, State, Param]
 }
 
+// New creates a new FSM instance with the given initial state, transitions, and options.
+//
+// The initial state and transitions are required and also these parameters are immutable after creation.
+//
+// The transitions define the allowed state changes.
 func New[Action, State comparable, Param any](
-	initialState State, // I don't want to allow this value to change after creation
-	transitions []Transition[Action, State, Param], // also immutable after creation
+	initialState State,
+	transitions []Transition[Action, State, Param],
 	options ...func(o *Options) *Options,
 ) (*FSM[Action, State, Param], error) {
 	finalOptions := &Options{}
