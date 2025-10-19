@@ -30,49 +30,72 @@ import (
 	"github.com/rianby64/kry"
 )
 
+type CustomParam struct {
+	Value string
+}
+
 func main() {
 	const (
-		close int = iota
+		initial int = iota
+		close
 		open
 	)
 
 	ctx := context.TODO()
 
-	// Define states and transitions
-	machine, _ := kry.New(
-		close, // Initial state
-		[]kry.Transition[string, int, any]{
-			{
-				Name: "open",
-				Src:  []int{open, close}, Dst: open,
-			},
-			{
-				Name: "close",
-				Src:  []int{open}, Dst: close,
+	fsk, err := kry.New(initial, []kry.Transition[string, int, CustomParam]{
+		{
+			Name: "open",
+			Src:  []int{initial, close},
+			Dst:  open,
+			Enter: func(ctx context.Context, instance kry.InstanceFSM[string, int, CustomParam], param CustomParam) error {
+				fmt.Println("Opened with param:", param.Value)
+
+				return nil
 			},
 		},
-	)
+		{
+			Name: "close",
+			Src:  []int{open},
+			Dst:  close,
+		},
+	}, kry.WithFullHistory())
+	if err != nil {
+		panic(err)
+	}
 
-	// Trigger events
-	fmt.Println(machine.Current()) // Output: close
-	machine.Event(ctx, "open")
-	fmt.Println(machine.Current()) // Output: open
-	machine.Event(ctx, "close")
-	fmt.Println(machine.Current()) // Output: close
+	if err := fsk.Event(ctx, "open", CustomParam{Value: "example"}); err != nil {
+		panic(err)
+	}
+
+	fmt.Println("Current state:", fsk.Current())
+
+	if err := fsk.Apply(ctx, "close", close); err != nil {
+		panic(err)
+	}
+
+	fmt.Println("Current state:", fsk.Current())
 }
 ```
 
 ## Requirements
 
-- Go 1.18 or higher
+- Go 1.23 or higher
+
+## We have
+
+- Simple API
+- Support for source transitions matching via function. (All 5xx, 4xx, etc.)
+- Visualization tools for FSMs
+- From transition - do a call to another transition, and do not allow looping
+- History of transitions
 
 ## Wish list for future improvements
 
-- Add more examples and documentation.
-- Implement more advanced features like state entry/exit actions.
-- Regex support for transitions matching. (All 5xx, 4xx, etc.)
-- Visualization tools for FSMs.
-- From transition - do a call to another transition, and do not allow looping.
+- Add more examples and documentation
+- Implement more advanced features like state beforeEnter/exit actions. (should I?)
+- Support for destination transitions matching via function. (All 5xx, 4xx, etc.)
+- Make this lib safe for concurrent use
 
 ## License
 
