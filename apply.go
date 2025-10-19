@@ -2,6 +2,7 @@ package kry
 
 import (
 	"context"
+	"errors"
 	"fmt"
 )
 
@@ -32,7 +33,7 @@ func (fsk *FSM[Action, State, Param]) apply(
 		fsk.forcedHistoryKeeper = newHistoryKeeper[Action, State, Param](fsk.historyKeeper.maxLength)
 	}()
 
-	if err, errOrig := fsk.switchEventByLengthParams(ctx, callbacks, param...); err != nil {
+	if err := fsk.switchEventByLengthParams(ctx, callbacks, param...); err != nil {
 		fsk.currentAction = oldAction
 		fsk.currentState = currentState
 
@@ -41,7 +42,7 @@ func (fsk *FSM[Action, State, Param]) apply(
 			action,
 			currentState,
 			newState,
-			errOrig,
+			errors.Unwrap(err),
 			param...,
 		); errHistory != nil {
 			err = fmt.Errorf("%w: %w", err, errHistory)
@@ -115,36 +116,36 @@ func (fsk *FSM[Action, State, Param]) applyByMatch(ctx context.Context, action A
 	return false, nil
 }
 
-func (fsk *FSM[Action, State, Param]) switchEventByLengthParams(ctx context.Context, stateTransition callbacks[Action, State, Param], param ...Param) (error, error) {
+func (fsk *FSM[Action, State, Param]) switchEventByLengthParams(ctx context.Context, stateTransition callbacks[Action, State, Param], param ...Param) error {
 	switch len(param) {
 	case 0:
 		if stateTransition.EnterNoParams != nil {
 			if err := stateTransition.EnterNoParams(ctx, fsk); err != nil {
-				return fmt.Errorf("failed to execute enter (no-params) callback: %w", err), err
+				return fmt.Errorf("failed to execute enter (no-params) callback: %w", err)
 			}
 
-			return nil, nil
+			return nil
 		}
 
 	case 1:
 		if stateTransition.Enter != nil {
 			if err := stateTransition.Enter(ctx, fsk, param[0]); err != nil {
-				return fmt.Errorf("failed to execute enter (single-param) callback: %w", err), err
+				return fmt.Errorf("failed to execute enter (single-param) callback: %w", err)
 			}
 
-			return nil, nil
+			return nil
 		}
 	}
 
 	if stateTransition.EnterVariadic != nil {
 		if err := stateTransition.EnterVariadic(ctx, fsk, param...); err != nil {
-			return fmt.Errorf("failed to execute enter (variadic) callback: %w", err), err
+			return fmt.Errorf("failed to execute enter (variadic) callback: %w", err)
 		}
 
-		return nil, nil
+		return nil
 	}
 
-	return nil, nil
+	return nil
 }
 
 func (fsk *FSM[Action, State, Param]) Event(ctx context.Context, action Action, param ...Param) error {
