@@ -60,22 +60,35 @@ type matchState[Action, State comparable, Param any] struct {
 }
 
 type FSM[Action, State comparable, Param any] struct {
-	id           uint64
-	currentState State
-	states       map[State]struct{}
-	path         map[Action]map[State]map[State]callbacks[Action, State, Param] // action -> dst state -> src state -> callbacks
-	pathByMatch  map[Action]map[State][]matchState[Action, State, Param]        // action -> dst state -> list of match conditions for dst states
+	id            uint64
+	currentState  State
+	currentAction Action
+	states        map[State]struct{}
+	path          map[Action]map[State]map[State]callbacks[Action, State, Param] // action -> dst state -> src state -> callbacks
+	pathByMatch   map[Action]map[State][]matchState[Action, State, Param]        // action -> dst state -> list of match conditions for dst states
 
-	events           map[Action]Transition[Action, State, Param]
-	canTriggerEvents bool
-
-	gaphic string
+	events              map[Action]Transition[Action, State, Param]
+	canTriggerEvents    bool
+	graphic             string
+	historyKeeper       *historyKeeper[Action, State, Param]
+	forcedHistoryKeeper *historyKeeper[Action, State, Param]
 }
 
+// New creates a new FSM instance with the given initial state, transitions, and options.
+//
+// The initial state and transitions are required and also these parameters are immutable after creation.
+//
+// The transitions define the allowed state changes.
 func New[Action, State comparable, Param any](
 	initialState State,
 	transitions []Transition[Action, State, Param],
+	options ...func(o *Options) *Options,
 ) (*FSM[Action, State, Param], error) {
+	finalOptions := &Options{}
+	for _, opt := range options {
+		finalOptions = opt(finalOptions)
+	}
+
 	path, pathByMatch, states, events,
 		canTriggerEvents, err := constructFromTransitions(initialState, transitions)
 	if err != nil {
@@ -97,14 +110,16 @@ func New[Action, State comparable, Param any](
 		pathByMatch:  pathByMatch,
 		states:       states,
 
-		events:           events,
-		canTriggerEvents: canTriggerEvents,
-		gaphic:           graphic,
+		events:              events,
+		canTriggerEvents:    canTriggerEvents,
+		graphic:             graphic,
+		historyKeeper:       newHistoryKeeper[Action, State, Param](finalOptions.historySize),
+		forcedHistoryKeeper: newHistoryKeeper[Action, State, Param](finalOptions.historySize),
 	}, nil
 }
 
 func (fsk *FSM[Action, State, Param]) String() string {
-	return fsk.gaphic
+	return fsk.graphic
 }
 
 func (fsk *FSM[Action, State, Param]) Current() State {
@@ -117,7 +132,14 @@ func (fsk *FSM[Action, State, Param]) ForceState(state State) error {
 		return fmt.Errorf("state %w: %v", ErrUnknown, state)
 	}
 
+	currentState := fsk.currentState
+	currentAction := fsk.currentAction
 	fsk.currentState = state
+
+	if errHistory := fsk.forcedHistoryKeeper.
+		PushForced(currentAction, currentState, state, nil); errHistory != nil {
+		return fmt.Errorf("failed to push history item: %w", errHistory)
+	}
 
 	return nil
 }

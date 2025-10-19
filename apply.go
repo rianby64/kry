@@ -2,6 +2,7 @@ package kry
 
 import (
 	"context"
+	"errors"
 	"fmt"
 )
 
@@ -12,13 +13,58 @@ func (fsk *FSM[Action, State, Param]) apply(
 	currentState, newState State,
 	param ...Param,
 ) error {
+	oldForcedHistoryKeeper := fsk.forcedHistoryKeeper
+	oldHistoryKeeper := fsk.historyKeeper
+	oldAction := fsk.currentAction
+
+	fsk.currentAction = action
 	fsk.currentState = newState
 
+	historyKeeper := newHistoryKeeper[Action, State, Param](fsk.historyKeeper.maxLength)
+	forcedHistoryKeeper := newHistoryKeeper[Action, State, Param](fsk.historyKeeper.maxLength)
+	fsk.historyKeeper = historyKeeper
+	fsk.forcedHistoryKeeper = forcedHistoryKeeper
+
+	defer func() {
+		oldHistoryKeeper.Append(oldForcedHistoryKeeper)
+		oldHistoryKeeper.Append(historyKeeper)
+		fsk.historyKeeper = oldHistoryKeeper
+		oldForcedHistoryKeeper.Clear()
+		fsk.forcedHistoryKeeper = newHistoryKeeper[Action, State, Param](fsk.historyKeeper.maxLength)
+	}()
+
 	if err := fsk.switchEventByLengthParams(ctx, callbacks, param...); err != nil {
+		fsk.currentAction = oldAction
 		fsk.currentState = currentState
+
+		if intermediateHistory, errHistory := fsk.keepForcedHistory(
+			forcedHistoryKeeper,
+			action,
+			currentState,
+			newState,
+			errors.Unwrap(err),
+			param...,
+		); errHistory != nil {
+			err = fmt.Errorf("%w: %w", err, errHistory)
+		} else {
+			historyKeeper = intermediateHistory
+		}
 
 		return fmt.Errorf("failed to apply (%v) from '%v' to '%v': %w",
 			action, currentState, newState, err)
+	}
+
+	if intermediateHistory, errHistory := fsk.keepForcedHistory(
+		forcedHistoryKeeper,
+		action,
+		currentState,
+		newState,
+		nil,
+		param...,
+	); errHistory != nil {
+		return fmt.Errorf("failed to keep forced history: %w", errHistory)
+	} else {
+		historyKeeper = intermediateHistory
 	}
 
 	return nil
@@ -145,5 +191,11 @@ func (fsk *FSM[Action, State, Param]) Apply(ctx context.Context, action Action, 
 		return nil
 	}
 
-	return fmt.Errorf("transition (%v) from state %w: %v", action, ErrNotFound, currentState)
+	err = ErrNotFound
+	errHistory := fsk.historyKeeper.Push(action, currentState, newState, ErrNotFound, param...)
+	if errHistory != nil {
+		err = fmt.Errorf("%w: failed to push history item: %w", err, errHistory)
+	}
+
+	return fmt.Errorf("transition (%v) from state %v: %w", action, currentState, err)
 }
