@@ -657,13 +657,53 @@ func Test_loop_case_infinity_break(t *testing.T) {
 				return instance.Apply(ctx, "open", open) // here I introduced a loop intentionally
 			},
 		},
-	})
+	}, WithFullHistory())
 
 	require.ErrorIs(t, machine.Apply(context.TODO(), "open", open), ErrLoopFound)
 	require.Equal(t, close, machine.Current())
 	require.Equal(t, 1, calledOpen)
 	require.Equal(t, 1, calledRoger)
 	require.Equal(t, 1, calledClose)
+
+	expectedHistory := []HistoryItem[string, int, any]{
+		{
+			Action: "open",
+			From:   close,
+			To:     open,
+			Params: nil,
+			Error:  ErrLoopFound,
+		},
+		{
+			Action: "roger",
+			From:   open,
+			To:     roger,
+			Params: nil,
+			Error:  ErrLoopFound,
+		},
+		{
+			Action: "close",
+			From:   roger,
+			To:     close,
+			Params: nil,
+			Error:  ErrLoopFound,
+		},
+	}
+
+	if machine.History() == nil {
+		t.Fatal("history is nil")
+	}
+
+	if len(machine.History()) != len(expectedHistory) {
+		t.Fatalf("history length mismatch: got %d, want %d", len(machine.History()), len(expectedHistory))
+	}
+
+	for i, item := range machine.History() {
+		require.Equal(t, expectedHistory[i].Action, item.Action, "Action at index %d", i)
+		require.Equal(t, expectedHistory[i].From, item.From, "From at index %d", i)
+		require.Equal(t, expectedHistory[i].To, item.To, "To at index %d", i)
+		require.Equal(t, expectedHistory[i].Params, item.Params, "Params at index %d", i)
+		require.ErrorIs(t, item.Error, expectedHistory[i].Error, "Error at index %d", i)
+	}
 }
 
 func Test_loop_case_infinity_break_two_machines(t *testing.T) {
