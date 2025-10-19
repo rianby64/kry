@@ -6,10 +6,6 @@ import (
 	"github.com/fxamacker/cbor/v2"
 )
 
-const (
-	fullHistorySize = -1
-)
-
 type HistoryItem[Action, State comparable, Param any] struct {
 	Forced bool
 	Action Action

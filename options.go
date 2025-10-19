@@ -1,5 +1,9 @@
 package kry
 
+const (
+	fullHistorySize = -1
+)
+
 type Options struct {
 	historySize int
 }
