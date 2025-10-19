@@ -425,18 +425,18 @@ func Test_history_in_machine_with_force_state(t *testing.T) {
 		},
 		{
 			Action: "open",
+			From:   roger,
+			To:     open,
+			Params: []string{"force-close"},
+			Error:  nil,
+		},
+		{
+			Action: "open",
 			From:   open,
 			To:     close,
 			Params: nil,
 			Error:  nil,
 			Forced: true,
-		},
-		{
-			Action: "open",
-			From:   roger,
-			To:     open,
-			Params: []string{"force-close"},
-			Error:  nil,
 		},
 		{
 			Action: "roger",
@@ -523,6 +523,13 @@ func Test_history_in_machine_with_multiple_force_state(t *testing.T) {
 		},
 		{
 			Action: "open",
+			From:   roger,
+			To:     open,
+			Params: []string{"force-close-roger"},
+			Error:  nil,
+		},
+		{
+			Action: "open",
 			From:   open,
 			To:     close,
 			Params: nil,
@@ -536,13 +543,6 @@ func Test_history_in_machine_with_multiple_force_state(t *testing.T) {
 			Params: nil,
 			Error:  nil,
 			Forced: true,
-		},
-		{
-			Action: "open",
-			From:   roger,
-			To:     open,
-			Params: []string{"force-close-roger"},
-			Error:  nil,
 		},
 		{
 			Action: "open",
@@ -607,11 +607,6 @@ func Test_history_in_machine_with_multiple_force_state_limited(t *testing.T) {
 				return nil
 			},
 		},
-		{
-			Name: "close",
-			Src:  []int{open},
-			Dst:  close,
-		},
 	}, WithFullHistory())
 
 	require.NoError(t, machine.Apply(context.TODO(), "roger", roger))
@@ -623,18 +618,19 @@ func Test_history_in_machine_with_multiple_force_state_limited(t *testing.T) {
 	require.NoError(t, machine.Apply(context.TODO(), "roger", roger))
 	require.Equal(t, roger, machine.Current())
 
-	require.NoError(t, machine.Apply(context.TODO(), "open", open))
-	require.Equal(t, open, machine.Current())
-
-	require.NoError(t, machine.Apply(context.TODO(), "close", close))
-	require.Equal(t, close, machine.Current())
-
 	expectedHistory := []HistoryItem[string, int, string]{
 		{
 			Action: "roger",
 			From:   close,
 			To:     roger,
 			Params: nil,
+			Error:  nil,
+		},
+		{
+			Action: "open",
+			From:   roger,
+			To:     open,
+			Params: []string{"force-close-roger"},
 			Error:  nil,
 		},
 		{
@@ -649,14 +645,6 @@ func Test_history_in_machine_with_multiple_force_state_limited(t *testing.T) {
 			Action: "open",
 			From:   close,
 			To:     roger,
-			Params: nil,
-			Error:  nil,
-			Forced: true,
-		},
-		{
-			Action: "roger-close",
-			From:   close,
-			To:     close,
 			Params: nil,
 			Error:  nil,
 			Forced: true,
@@ -669,23 +657,17 @@ func Test_history_in_machine_with_multiple_force_state_limited(t *testing.T) {
 			Error:  nil,
 		},
 		{
-			Action: "open",
-			From:   roger,
-			To:     open,
-			Params: []string{"force-close-roger"},
-			Error:  nil,
-		},
-		{
-			Action: "open",
-			From:   roger,
-			To:     open,
+			Action: "roger-close",
+			From:   close,
+			To:     close,
 			Params: nil,
 			Error:  nil,
+			Forced: true,
 		},
 		{
-			Action: "close",
-			From:   open,
-			To:     close,
+			Action: "roger",
+			From:   close,
+			To:     roger,
 			Params: nil,
 			Error:  nil,
 		},

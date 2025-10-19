@@ -47,12 +47,12 @@ func cloneParams[Param any](params ...Param) ([]Param, error) {
 
 	data, err := cbor.Marshal(params)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to marshal params: %w", err)
 	}
 
 	var cloned []Param
 	if err := cbor.Unmarshal(data, &cloned); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to unmarshal params: %w", err)
 	}
 
 	return cloned, nil
@@ -73,7 +73,7 @@ func (hk *historyKeeper[Action, State, Param]) push(action Action, from State, t
 
 	cloneParams, errClone := cloneParams(params...)
 	if errClone != nil {
-		return errClone
+		return fmt.Errorf("failed to clone params: %w", errClone)
 	}
 
 	item := &historyItem[Action, State, Param]{
@@ -87,6 +87,14 @@ func (hk *historyKeeper[Action, State, Param]) push(action Action, from State, t
 		},
 	}
 
+	if hk.length == 0 {
+		hk.head = item
+		hk.tail = item
+		hk.length++
+
+		return nil
+	}
+
 	if hk.maxLength > 0 && hk.length >= hk.maxLength {
 		hk.tail.Next = item
 		hk.tail = item
@@ -96,13 +104,8 @@ func (hk *historyKeeper[Action, State, Param]) push(action Action, from State, t
 	}
 
 	hk.length++
-	if hk.head == nil {
-		hk.head = item
-		hk.tail = item
-	} else {
-		hk.tail.Next = item
-		hk.tail = item
-	}
+	hk.tail.Next = item
+	hk.tail = item
 
 	return nil
 }
@@ -122,11 +125,19 @@ func (hk *historyKeeper[Action, State, Param]) Items() []HistoryItem[Action, Sta
 }
 
 func (hk *historyKeeper[Action, State, Param]) Append(other *historyKeeper[Action, State, Param]) {
+	if hk.tail == nil {
+		hk.head = other.head
+		hk.tail = other.tail
+		hk.length = other.length
+
+		return
+	}
+
 	hk.tail.Next = other.head
 	hk.tail = other.tail
 	hk.length += other.length
 
-	if hk.maxLength > 0 && hk.length > hk.maxLength { // TODO: test this
+	if hk.maxLength > 0 && hk.length > hk.maxLength {
 		excess := hk.length - hk.maxLength
 		current := hk.head
 
@@ -148,22 +159,27 @@ func (hk *historyKeeper[Action, State, Param]) Clear() {
 // the following methods are added to FSM because they relate to history management
 
 func (fsk *FSM[Action, State, Param]) keepForcedHistory(
+	forcedHistoryKeeper *historyKeeper[Action, State, Param],
 	action Action,
 	currentState, newState State,
 	err error,
 	param ...Param,
-) error {
-	if fsk.forcedHistoryKeeper.length > 0 {
-		fsk.historyKeeper.Append(fsk.forcedHistoryKeeper)
-		fsk.forcedHistoryKeeper.Clear()
-	}
-
-	if errHistory := fsk.historyKeeper.
+) (*historyKeeper[Action, State, Param], error) {
+	finalKeeper := newHistoryKeeper[Action, State, Param](fsk.historyKeeper.maxLength)
+	if errHistory := finalKeeper.
 		Push(action, currentState, newState, err, param...); errHistory != nil {
-		return fmt.Errorf("failed to push history item: %w", errHistory)
+		return nil, fmt.Errorf("failed to push history item: %w", errHistory)
 	}
 
-	return nil
+	if forcedHistoryKeeper.length > 0 {
+		finalKeeper.Append(forcedHistoryKeeper)
+	}
+
+	if fsk.historyKeeper.length > 0 {
+		finalKeeper.Append(fsk.historyKeeper)
+	}
+
+	return finalKeeper, nil
 }
 
 func (fsk *FSM[Action, State, Param]) History() []HistoryItem[Action, State, Param] {

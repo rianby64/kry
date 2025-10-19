@@ -12,25 +12,58 @@ func (fsk *FSM[Action, State, Param]) apply(
 	currentState, newState State,
 	param ...Param,
 ) error {
+	oldHistoryKeeper := fsk.historyKeeper
 	oldAction := fsk.currentAction
+
 	fsk.currentAction = action
 	fsk.currentState = newState
+
+	historyKeeper := newHistoryKeeper[Action, State, Param](fsk.historyKeeper.maxLength)
+	forcedHistoryKeeper := newHistoryKeeper[Action, State, Param](fsk.historyKeeper.maxLength)
+	fsk.historyKeeper = historyKeeper
+	fsk.forcedHistoryKeeper = forcedHistoryKeeper
+
+	defer func() {
+		oldHistoryKeeper.Append(historyKeeper)
+		fsk.historyKeeper = oldHistoryKeeper
+		fsk.forcedHistoryKeeper.Clear()
+	}()
 
 	if err, errOrig := fsk.switchEventByLengthParams(ctx, callbacks, param...); err != nil {
 		fsk.currentAction = oldAction
 		fsk.currentState = currentState
 
-		// TODO: test that history is kept even on error
-		errHistory := fsk.keepForcedHistory(action, currentState, newState, errOrig, param...)
-		if errHistory != nil {
+		if intermediateHistory, errHistory := fsk.keepForcedHistory(
+			forcedHistoryKeeper,
+			action,
+			currentState,
+			newState,
+			errOrig,
+			param...,
+		); errHistory != nil {
 			err = fmt.Errorf("%w: %w", err, errHistory)
+		} else {
+			historyKeeper = intermediateHistory
 		}
 
 		return fmt.Errorf("failed to apply (%v) from '%v' to '%v': %w",
 			action, currentState, newState, err)
 	}
 
-	return fsk.keepForcedHistory(action, currentState, newState, nil, param...)
+	if intermediateHistory, errHistory := fsk.keepForcedHistory(
+		forcedHistoryKeeper,
+		action,
+		currentState,
+		newState,
+		nil,
+		param...,
+	); errHistory != nil {
+		return fmt.Errorf("failed to keep forced history: %w", errHistory)
+	} else {
+		historyKeeper = intermediateHistory
+	}
+
+	return nil
 }
 
 func (fsk *FSM[Action, State, Param]) applyByExact(ctx context.Context, action Action, newState State, param ...Param) (bool, error) {
