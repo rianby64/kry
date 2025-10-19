@@ -674,3 +674,169 @@ func Test_history_in_machine_with_multiple_force_state_limited(t *testing.T) {
 	}
 	require.Equal(t, expectedHistory, machine.History())
 }
+
+func Test_history_in_machine_with_force_states(t *testing.T) {
+	const (
+		close int = iota
+		roger
+		open
+	)
+
+	machine, _ := New(close, []Transition[string, int, string]{
+		{
+			Name: "roger",
+			Src:  []int{close},
+			Dst:  roger,
+		},
+		{
+			Name: "open",
+			Src:  []int{roger},
+			Dst:  open,
+			Enter: func(ctx context.Context, fsm InstanceFSM[string, int, string], param string) error {
+				if param == "fail" {
+					return ErrNotAllowed
+				}
+
+				return nil
+			},
+		},
+		{
+			Name: "close",
+			Src:  []int{open},
+			Dst:  close,
+		},
+	}, WithFullHistory())
+
+	require.NoError(t, machine.ForceState(open))
+	require.NoError(t, machine.ForceState(close))
+
+	require.NoError(t, machine.Apply(context.TODO(), "roger", roger))
+	require.Equal(t, roger, machine.Current())
+
+	require.ErrorIs(t, machine.Apply(context.TODO(), "open", open, "fail"), ErrNotAllowed)
+	require.Equal(t, roger, machine.Current())
+
+	require.NoError(t, machine.ForceState(open))
+	require.NoError(t, machine.ForceState(roger))
+
+	expectedHistory1 := []HistoryItem[string, int, string]{
+		{
+			Action: "",
+			From:   close,
+			To:     open,
+			Params: nil,
+			Error:  nil,
+			Forced: true,
+		},
+		{
+			Action: "",
+			From:   open,
+			To:     close,
+			Params: nil,
+			Error:  nil,
+			Forced: true,
+		},
+		{
+			Action: "roger",
+			From:   close,
+			To:     roger,
+			Params: nil,
+			Error:  nil,
+		},
+		{
+			Action: "open",
+			From:   roger,
+			To:     open,
+			Params: []string{"fail"},
+			Error:  ErrNotAllowed,
+		},
+		{
+			Action: "roger",
+			From:   roger,
+			To:     open,
+			Params: nil,
+			Error:  nil,
+			Forced: true,
+		},
+		{
+			Action: "roger",
+			From:   open,
+			To:     roger,
+			Params: nil,
+			Error:  nil,
+			Forced: true,
+		},
+	}
+
+	require.Equal(t, expectedHistory1, machine.History())
+
+	require.NoError(t, machine.Apply(context.TODO(), "open", open))
+	require.Equal(t, open, machine.Current())
+
+	require.NoError(t, machine.Apply(context.TODO(), "close", close))
+	require.Equal(t, close, machine.Current())
+
+	expectedHistory2 := []HistoryItem[string, int, string]{
+		{
+			Action: "",
+			From:   close,
+			To:     open,
+			Params: nil,
+			Error:  nil,
+			Forced: true,
+		},
+		{
+			Action: "",
+			From:   open,
+			To:     close,
+			Params: nil,
+			Error:  nil,
+			Forced: true,
+		},
+		{
+			Action: "roger",
+			From:   close,
+			To:     roger,
+			Params: nil,
+			Error:  nil,
+		},
+		{
+			Action: "open",
+			From:   roger,
+			To:     open,
+			Params: []string{"fail"},
+			Error:  ErrNotAllowed,
+		},
+		{
+			Action: "roger",
+			From:   roger,
+			To:     open,
+			Params: nil,
+			Error:  nil,
+			Forced: true,
+		},
+		{
+			Action: "roger",
+			From:   open,
+			To:     roger,
+			Params: nil,
+			Error:  nil,
+			Forced: true,
+		},
+		{
+			Action: "open",
+			From:   roger,
+			To:     open,
+			Params: nil,
+			Error:  nil,
+		},
+		{
+			Action: "close",
+			From:   open,
+			To:     close,
+			Params: nil,
+			Error:  nil,
+		},
+	}
+	require.Equal(t, expectedHistory2, machine.History())
+}

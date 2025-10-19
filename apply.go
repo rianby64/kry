@@ -12,6 +12,7 @@ func (fsk *FSM[Action, State, Param]) apply(
 	currentState, newState State,
 	param ...Param,
 ) error {
+	oldForcedHistoryKeeper := fsk.forcedHistoryKeeper
 	oldHistoryKeeper := fsk.historyKeeper
 	oldAction := fsk.currentAction
 
@@ -24,9 +25,11 @@ func (fsk *FSM[Action, State, Param]) apply(
 	fsk.forcedHistoryKeeper = forcedHistoryKeeper
 
 	defer func() {
+		oldHistoryKeeper.Append(oldForcedHistoryKeeper)
 		oldHistoryKeeper.Append(historyKeeper)
 		fsk.historyKeeper = oldHistoryKeeper
-		fsk.forcedHistoryKeeper.Clear()
+		oldForcedHistoryKeeper.Clear()
+		fsk.forcedHistoryKeeper = newHistoryKeeper[Action, State, Param](fsk.historyKeeper.maxLength)
 	}()
 
 	if err, errOrig := fsk.switchEventByLengthParams(ctx, callbacks, param...); err != nil {

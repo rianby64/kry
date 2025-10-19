@@ -125,6 +125,10 @@ func (hk *historyKeeper[Action, State, Param]) Items() []HistoryItem[Action, Sta
 }
 
 func (hk *historyKeeper[Action, State, Param]) Append(other *historyKeeper[Action, State, Param]) {
+	if other.length == 0 {
+		return
+	}
+
 	if hk.tail == nil {
 		hk.head = other.head
 		hk.tail = other.tail
@@ -183,5 +187,8 @@ func (fsk *FSM[Action, State, Param]) keepForcedHistory(
 }
 
 func (fsk *FSM[Action, State, Param]) History() []HistoryItem[Action, State, Param] {
+	fsk.historyKeeper.Append(fsk.forcedHistoryKeeper)
+	fsk.forcedHistoryKeeper = newHistoryKeeper[Action, State, Param](fsk.historyKeeper.maxLength)
+
 	return fsk.historyKeeper.Items()
 }
