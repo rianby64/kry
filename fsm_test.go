@@ -671,21 +671,21 @@ func Test_loop_case_infinity_break(t *testing.T) {
 			From:   close,
 			To:     open,
 			Params: nil,
-			Error:  ErrLoopFound,
+			Err:    ErrLoopFound,
 		},
 		{
 			Action: "roger",
 			From:   open,
 			To:     roger,
 			Params: nil,
-			Error:  ErrLoopFound,
+			Err:    ErrLoopFound,
 		},
 		{
 			Action: "close",
 			From:   roger,
 			To:     close,
 			Params: nil,
-			Error:  ErrLoopFound,
+			Err:    ErrLoopFound,
 		},
 	}
 
@@ -702,7 +702,7 @@ func Test_loop_case_infinity_break(t *testing.T) {
 		require.Equal(t, expectedHistory[i].From, item.From, "From at index %d", i)
 		require.Equal(t, expectedHistory[i].To, item.To, "To at index %d", i)
 		require.Equal(t, expectedHistory[i].Params, item.Params, "Params at index %d", i)
-		require.ErrorIs(t, item.Error, expectedHistory[i].Error, "Error at index %d", i)
+		require.ErrorIs(t, item.Err, expectedHistory[i].Err, "Error at index %d", i)
 	}
 }
 

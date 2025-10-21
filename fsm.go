@@ -72,6 +72,7 @@ type FSM[Action, State comparable, Param any] struct {
 	graphic             string
 	historyKeeper       *historyKeeper[Action, State, Param]
 	forcedHistoryKeeper *historyKeeper[Action, State, Param]
+	stackTrace          bool
 }
 
 // New creates a new FSM instance with the given initial state, transitions, and options.
@@ -110,11 +111,16 @@ func New[Action, State comparable, Param any](
 		pathByMatch:  pathByMatch,
 		states:       states,
 
-		events:              events,
-		canTriggerEvents:    canTriggerEvents,
-		graphic:             graphic,
-		historyKeeper:       newHistoryKeeper[Action, State, Param](finalOptions.historySize),
-		forcedHistoryKeeper: newHistoryKeeper[Action, State, Param](finalOptions.historySize),
+		events:           events,
+		canTriggerEvents: canTriggerEvents,
+		graphic:          graphic,
+		historyKeeper: newHistoryKeeper[Action, State, Param](
+			finalOptions.historySize, finalOptions.stackTrace,
+		),
+		forcedHistoryKeeper: newHistoryKeeper[Action, State, Param](
+			finalOptions.historySize, finalOptions.stackTrace,
+		),
+		stackTrace: finalOptions.stackTrace,
 	}, nil
 }
 

@@ -2,6 +2,8 @@ package kry
 
 import (
 	"fmt"
+	"runtime"
+	"strings"
 
 	"github.com/fxamacker/cbor/v2"
 )
@@ -12,7 +14,9 @@ type HistoryItem[Action, State comparable, Param any] struct {
 	From   State
 	To     State
 	Params []Param
-	Error  error
+	Err    error
+	Stack  string
+	Reason string
 }
 
 type historyItem[Action, State comparable, Param any] struct {
@@ -21,18 +25,20 @@ type historyItem[Action, State comparable, Param any] struct {
 }
 
 type historyKeeper[Action, State comparable, Param any] struct {
-	maxLength int
-	head      *historyItem[Action, State, Param]
-	tail      *historyItem[Action, State, Param]
-	length    int
+	maxLength  int
+	head       *historyItem[Action, State, Param]
+	tail       *historyItem[Action, State, Param]
+	length     int
+	stackTrace bool
 }
 
-func newHistoryKeeper[Action, State comparable, Param any](size int) *historyKeeper[Action, State, Param] {
+func newHistoryKeeper[Action, State comparable, Param any](size int, stackTrace bool) *historyKeeper[Action, State, Param] {
 	return &historyKeeper[Action, State, Param]{
-		maxLength: size,
-		head:      nil,
-		tail:      nil,
-		length:    0,
+		maxLength:  size,
+		head:       nil,
+		tail:       nil,
+		length:     0,
+		stackTrace: stackTrace,
 	}
 }
 
@@ -41,23 +47,15 @@ func cloneParams[Param any](params ...Param) ([]Param, error) {
 		return params, nil
 	}
 
-	datum := make([][]byte, len(params))
-
-	for index, param := range params {
-		data, err := cbor.Marshal(param)
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal params: %w", err)
-		}
-
-		datum[index] = data
+	data, err := cbor.Marshal(params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal params: %w", err)
 	}
 
-	cloned := make([]Param, len(params))
+	var cloned []Param
 
-	for index, data := range datum {
-		if err := cbor.Unmarshal(data, &cloned[index]); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal params: %w", err)
-		}
+	if err := cbor.Unmarshal(data, &cloned); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal params: %w", err)
 	}
 
 	return cloned, nil
@@ -87,9 +85,30 @@ func (hk *historyKeeper[Action, State, Param]) push(action Action, from State, t
 			From:   from,
 			To:     to,
 			Params: cloneParams,
-			Error:  err,
+			Err:    err,
 			Forced: forced,
 		},
+	}
+
+	if hk.stackTrace && err != nil {
+		item.Reason = err.Error()
+		const depth = 64
+		pcs := make([]uintptr, depth)
+		// skip 3 frames: runtime.Callers -> push -> Push
+		n := runtime.Callers(3, pcs)
+		pcs = pcs[:n]
+
+		var b strings.Builder
+		frames := runtime.CallersFrames(pcs)
+		for {
+			frame, ok := frames.Next()
+			if !ok {
+				break
+			}
+			fmt.Fprintf(&b, "    %s\n        %s:%d\n", frame.Function, frame.File, frame.Line)
+		}
+
+		item.Stack = b.String()
 	}
 
 	if hk.length == 0 {
@@ -174,7 +193,10 @@ func (fsk *FSM[Action, State, Param]) keepForcedHistory(
 	err error,
 	param ...Param,
 ) (*historyKeeper[Action, State, Param], error) {
-	finalKeeper := newHistoryKeeper[Action, State, Param](fsk.historyKeeper.maxLength)
+	finalKeeper := newHistoryKeeper[Action, State, Param](
+		fsk.historyKeeper.maxLength,
+		fsk.stackTrace,
+	)
 	if errHistory := finalKeeper.
 		Push(action, currentState, newState, err, param...); errHistory != nil {
 		return nil, fmt.Errorf("failed to push history item: %w", errHistory)
@@ -193,7 +215,10 @@ func (fsk *FSM[Action, State, Param]) keepForcedHistory(
 
 func (fsk *FSM[Action, State, Param]) History() []HistoryItem[Action, State, Param] {
 	fsk.historyKeeper.Append(fsk.forcedHistoryKeeper)
-	fsk.forcedHistoryKeeper = newHistoryKeeper[Action, State, Param](fsk.historyKeeper.maxLength)
+	fsk.forcedHistoryKeeper = newHistoryKeeper[Action, State, Param](
+		fsk.historyKeeper.maxLength,
+		fsk.stackTrace,
+	)
 
 	return fsk.historyKeeper.Items()
 }

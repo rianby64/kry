@@ -2,13 +2,14 @@ package kry
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
 
 func Test_history_size_limit_to_3(t *testing.T) {
-	hk := newHistoryKeeper[string, int, string](2)
+	hk := newHistoryKeeper[string, int, string](2, false)
 
 	if err := hk.Push("action1", 0, 1, nil, "param1"); err != nil {
 		t.Fatalf("failed to push history item: %v", err)
@@ -20,7 +21,7 @@ func Test_history_size_limit_to_3(t *testing.T) {
 			From:   0,
 			To:     1,
 			Params: []string{"param1"},
-			Error:  nil,
+			Err:    nil,
 		},
 	}
 	require.Equal(t, expectedHistory1, hk.Items())
@@ -39,14 +40,14 @@ func Test_history_size_limit_to_3(t *testing.T) {
 			From:   0,
 			To:     1,
 			Params: []string{"param1"},
-			Error:  nil,
+			Err:    nil,
 		},
 		{
 			Action: "action2",
 			From:   1,
 			To:     2,
 			Params: []string{"param2"},
-			Error:  nil,
+			Err:    nil,
 		},
 	}
 	require.Equal(t, expectedHistory2, hk.Items())
@@ -65,21 +66,21 @@ func Test_history_size_limit_to_3(t *testing.T) {
 			From:   1,
 			To:     2,
 			Params: []string{"param2"},
-			Error:  nil,
+			Err:    nil,
 		},
 		{
 			Action: "action3",
 			From:   2,
 			To:     3,
 			Params: []string{"param3"},
-			Error:  nil,
+			Err:    nil,
 		},
 	}
 	require.Equal(t, expectedHistory3, hk.Items())
 }
 
 func Test_history_no_size_limit(t *testing.T) {
-	hk := newHistoryKeeper[string, int, string](fullHistorySize)
+	hk := newHistoryKeeper[string, int, string](fullHistorySize, false)
 
 	if err := hk.Push("action1", 0, 1, nil, "param1"); err != nil {
 		t.Fatalf("failed to push history item: %v", err)
@@ -91,7 +92,7 @@ func Test_history_no_size_limit(t *testing.T) {
 			From:   0,
 			To:     1,
 			Params: []string{"param1"},
-			Error:  nil,
+			Err:    nil,
 		},
 	}
 	require.Equal(t, expectedHistory1, hk.Items())
@@ -110,14 +111,14 @@ func Test_history_no_size_limit(t *testing.T) {
 			From:   0,
 			To:     1,
 			Params: []string{"param1"},
-			Error:  nil,
+			Err:    nil,
 		},
 		{
 			Action: "action2",
 			From:   1,
 			To:     2,
 			Params: []string{"param2"},
-			Error:  nil,
+			Err:    nil,
 		},
 	}
 	require.Equal(t, expectedHistory2, hk.Items())
@@ -136,21 +137,21 @@ func Test_history_no_size_limit(t *testing.T) {
 			From:   0,
 			To:     1,
 			Params: []string{"param1"},
-			Error:  nil,
+			Err:    nil,
 		},
 		{
 			Action: "action2",
 			From:   1,
 			To:     2,
 			Params: []string{"param2"},
-			Error:  nil,
+			Err:    nil,
 		},
 		{
 			Action: "action3",
 			From:   2,
 			To:     3,
 			Params: []string{"param3"},
-			Error:  nil,
+			Err:    nil,
 		},
 	}
 	require.Equal(t, expectedHistory3, hk.Items())
@@ -179,14 +180,14 @@ func Test_history_in_machine(t *testing.T) {
 			From:   close,
 			To:     open,
 			Params: nil,
-			Error:  nil,
+			Err:    nil,
 		},
 		{
 			Action: "close",
 			From:   open,
 			To:     close,
 			Params: nil,
-			Error:  nil,
+			Err:    nil,
 		},
 	}
 	require.Equal(t, expectedHistory, machine.History())
@@ -215,7 +216,7 @@ func Test_history_in_machine_limited(t *testing.T) {
 			From:   open,
 			To:     close,
 			Params: nil,
-			Error:  nil,
+			Err:    nil,
 		},
 	}
 	require.Equal(t, expectedHistory, machine.History())
@@ -271,28 +272,28 @@ func Test_history_in_machine_with_error_from_enter(t *testing.T) {
 			From:   close,
 			To:     roger,
 			Params: nil,
-			Error:  nil,
+			Err:    nil,
 		},
 		{
 			Action: "open",
 			From:   roger,
 			To:     open,
 			Params: []string{"fail"},
-			Error:  ErrNotAllowed,
+			Err:    ErrNotAllowed,
 		},
 		{
 			Action: "open",
 			From:   roger,
 			To:     open,
 			Params: nil,
-			Error:  nil,
+			Err:    nil,
 		},
 		{
 			Action: "close",
 			From:   open,
 			To:     close,
 			Params: nil,
-			Error:  nil,
+			Err:    nil,
 		},
 	}
 	require.Equal(t, expectedHistory, machine.History())
@@ -341,28 +342,28 @@ func Test_history_in_machine_with_incorrect_transition_error(t *testing.T) {
 			From:   close,
 			To:     roger,
 			Params: nil,
-			Error:  nil,
+			Err:    nil,
 		},
 		{
 			Action: "open",
 			From:   roger,
 			To:     open,
 			Params: nil,
-			Error:  nil,
+			Err:    nil,
 		},
 		{
 			Action: "roger",
 			From:   open,
 			To:     roger,
 			Params: nil,
-			Error:  ErrNotFound,
+			Err:    ErrNotFound,
 		},
 		{
 			Action: "close",
 			From:   open,
 			To:     close,
 			Params: nil,
-			Error:  nil,
+			Err:    nil,
 		},
 	}
 	require.Equal(t, expectedHistory, machine.History())
@@ -421,21 +422,21 @@ func Test_history_in_machine_with_force_state(t *testing.T) {
 			From:   close,
 			To:     roger,
 			Params: nil,
-			Error:  nil,
+			Err:    nil,
 		},
 		{
 			Action: "open",
 			From:   roger,
 			To:     open,
 			Params: []string{"force-close"},
-			Error:  nil,
+			Err:    nil,
 		},
 		{
 			Action: "open",
 			From:   open,
 			To:     close,
 			Params: nil,
-			Error:  nil,
+			Err:    nil,
 			Forced: true,
 		},
 		{
@@ -443,21 +444,21 @@ func Test_history_in_machine_with_force_state(t *testing.T) {
 			From:   close,
 			To:     roger,
 			Params: nil,
-			Error:  nil,
+			Err:    nil,
 		},
 		{
 			Action: "open",
 			From:   roger,
 			To:     open,
 			Params: nil,
-			Error:  nil,
+			Err:    nil,
 		},
 		{
 			Action: "close",
 			From:   open,
 			To:     close,
 			Params: nil,
-			Error:  nil,
+			Err:    nil,
 		},
 	}
 	require.Equal(t, expectedHistory, machine.History())
@@ -519,21 +520,21 @@ func Test_history_in_machine_with_multiple_force_state(t *testing.T) {
 			From:   close,
 			To:     roger,
 			Params: nil,
-			Error:  nil,
+			Err:    nil,
 		},
 		{
 			Action: "open",
 			From:   roger,
 			To:     open,
 			Params: []string{"force-close-roger"},
-			Error:  nil,
+			Err:    nil,
 		},
 		{
 			Action: "open",
 			From:   open,
 			To:     close,
 			Params: nil,
-			Error:  nil,
+			Err:    nil,
 			Forced: true,
 		},
 		{
@@ -541,7 +542,7 @@ func Test_history_in_machine_with_multiple_force_state(t *testing.T) {
 			From:   close,
 			To:     roger,
 			Params: nil,
-			Error:  nil,
+			Err:    nil,
 			Forced: true,
 		},
 		{
@@ -549,14 +550,14 @@ func Test_history_in_machine_with_multiple_force_state(t *testing.T) {
 			From:   roger,
 			To:     open,
 			Params: nil,
-			Error:  nil,
+			Err:    nil,
 		},
 		{
 			Action: "close",
 			From:   open,
 			To:     close,
 			Params: nil,
-			Error:  nil,
+			Err:    nil,
 		},
 	}
 	require.Equal(t, expectedHistory, machine.History())
@@ -624,21 +625,21 @@ func Test_history_in_machine_with_multiple_force_state_limited(t *testing.T) {
 			From:   close,
 			To:     roger,
 			Params: nil,
-			Error:  nil,
+			Err:    nil,
 		},
 		{
 			Action: "open",
 			From:   roger,
 			To:     open,
 			Params: []string{"force-close-roger"},
-			Error:  nil,
+			Err:    nil,
 		},
 		{
 			Action: "open",
 			From:   open,
 			To:     close,
 			Params: nil,
-			Error:  nil,
+			Err:    nil,
 			Forced: true,
 		},
 		{
@@ -646,7 +647,7 @@ func Test_history_in_machine_with_multiple_force_state_limited(t *testing.T) {
 			From:   close,
 			To:     roger,
 			Params: nil,
-			Error:  nil,
+			Err:    nil,
 			Forced: true,
 		},
 		{
@@ -654,14 +655,14 @@ func Test_history_in_machine_with_multiple_force_state_limited(t *testing.T) {
 			From:   roger,
 			To:     close,
 			Params: []string{"force-close"},
-			Error:  nil,
+			Err:    nil,
 		},
 		{
 			Action: "roger-close",
 			From:   close,
 			To:     close,
 			Params: nil,
-			Error:  nil,
+			Err:    nil,
 			Forced: true,
 		},
 		{
@@ -669,7 +670,7 @@ func Test_history_in_machine_with_multiple_force_state_limited(t *testing.T) {
 			From:   close,
 			To:     roger,
 			Params: nil,
-			Error:  nil,
+			Err:    nil,
 		},
 	}
 	require.Equal(t, expectedHistory, machine.History())
@@ -725,7 +726,7 @@ func Test_history_in_machine_with_force_states(t *testing.T) {
 			From:   close,
 			To:     open,
 			Params: nil,
-			Error:  nil,
+			Err:    nil,
 			Forced: true,
 		},
 		{
@@ -733,7 +734,7 @@ func Test_history_in_machine_with_force_states(t *testing.T) {
 			From:   open,
 			To:     close,
 			Params: nil,
-			Error:  nil,
+			Err:    nil,
 			Forced: true,
 		},
 		{
@@ -741,21 +742,21 @@ func Test_history_in_machine_with_force_states(t *testing.T) {
 			From:   close,
 			To:     roger,
 			Params: nil,
-			Error:  nil,
+			Err:    nil,
 		},
 		{
 			Action: "open",
 			From:   roger,
 			To:     open,
 			Params: []string{"fail"},
-			Error:  ErrNotAllowed,
+			Err:    ErrNotAllowed,
 		},
 		{
 			Action: "roger",
 			From:   roger,
 			To:     open,
 			Params: nil,
-			Error:  nil,
+			Err:    nil,
 			Forced: true,
 		},
 		{
@@ -763,7 +764,7 @@ func Test_history_in_machine_with_force_states(t *testing.T) {
 			From:   open,
 			To:     roger,
 			Params: nil,
-			Error:  nil,
+			Err:    nil,
 			Forced: true,
 		},
 	}
@@ -782,7 +783,7 @@ func Test_history_in_machine_with_force_states(t *testing.T) {
 			From:   close,
 			To:     open,
 			Params: nil,
-			Error:  nil,
+			Err:    nil,
 			Forced: true,
 		},
 		{
@@ -790,7 +791,7 @@ func Test_history_in_machine_with_force_states(t *testing.T) {
 			From:   open,
 			To:     close,
 			Params: nil,
-			Error:  nil,
+			Err:    nil,
 			Forced: true,
 		},
 		{
@@ -798,21 +799,21 @@ func Test_history_in_machine_with_force_states(t *testing.T) {
 			From:   close,
 			To:     roger,
 			Params: nil,
-			Error:  nil,
+			Err:    nil,
 		},
 		{
 			Action: "open",
 			From:   roger,
 			To:     open,
 			Params: []string{"fail"},
-			Error:  ErrNotAllowed,
+			Err:    ErrNotAllowed,
 		},
 		{
 			Action: "roger",
 			From:   roger,
 			To:     open,
 			Params: nil,
-			Error:  nil,
+			Err:    nil,
 			Forced: true,
 		},
 		{
@@ -820,7 +821,7 @@ func Test_history_in_machine_with_force_states(t *testing.T) {
 			From:   open,
 			To:     roger,
 			Params: nil,
-			Error:  nil,
+			Err:    nil,
 			Forced: true,
 		},
 		{
@@ -828,15 +829,46 @@ func Test_history_in_machine_with_force_states(t *testing.T) {
 			From:   roger,
 			To:     open,
 			Params: nil,
-			Error:  nil,
+			Err:    nil,
 		},
 		{
 			Action: "close",
 			From:   open,
 			To:     close,
 			Params: nil,
-			Error:  nil,
+			Err:    nil,
 		},
 	}
 	require.Equal(t, expectedHistory2, machine.History())
+}
+
+func Test_history_no_size_limit_stacktrace(t *testing.T) {
+	hk := newHistoryKeeper[string, int, string](fullHistorySize, true)
+
+	intentionalErr := fmt.Errorf("intentional error")
+	if err := hk.Push("action1", 0, 1, intentionalErr, "param1"); err != nil {
+		t.Fatalf("failed to push history item: %v", err)
+	}
+
+	expectedHistory1 := []HistoryItem[string, int, string]{
+		{
+			Action: "action1",
+			From:   0,
+			To:     1,
+			Params: []string{"param1"},
+			Err:    intentionalErr,
+			Stack:  "... stack trace ...", // machine depends on runtime, so we just check it's not empty
+			Reason: intentionalErr.Error(),
+		},
+	}
+	history := hk.Items()
+	require.Len(t, history, 1)
+	item := history[0]
+	require.Equal(t, expectedHistory1[0].Action, item.Action)
+	require.Equal(t, expectedHistory1[0].From, item.From)
+	require.Equal(t, expectedHistory1[0].To, item.To)
+	require.Equal(t, expectedHistory1[0].Params, item.Params)
+	require.Equal(t, expectedHistory1[0].Err, item.Err)
+	require.NotEmpty(t, item.Stack)
+	require.Equal(t, expectedHistory1[0].Reason, item.Reason)
 }
