@@ -9,7 +9,6 @@ import (
 )
 
 type HistoryItem[Action, State comparable, Param any] struct {
-	Forced bool
 	Action Action
 	From   State
 	To     State
@@ -62,14 +61,6 @@ func cloneParams[Param any](params ...Param) ([]Param, error) {
 }
 
 func (hk *historyKeeper[Action, State, Param]) Push(action Action, from State, to State, err error, params ...Param) error {
-	return hk.push(action, from, to, err, false, params...)
-}
-
-func (hk *historyKeeper[Action, State, Param]) PushForced(action Action, from State, to State, err error, params ...Param) error {
-	return hk.push(action, from, to, err, true, params...)
-}
-
-func (hk *historyKeeper[Action, State, Param]) push(action Action, from State, to State, err error, forced bool, params ...Param) error {
 	if hk.maxLength == 0 {
 		return nil
 	}
@@ -86,7 +77,6 @@ func (hk *historyKeeper[Action, State, Param]) push(action Action, from State, t
 			To:     to,
 			Params: cloneParams,
 			Err:    err,
-			Forced: forced,
 		},
 	}
 
@@ -180,26 +170,29 @@ func (hk *historyKeeper[Action, State, Param]) Append(other *historyKeeper[Actio
 
 // the following methods are added to FSM because they relate to history management
 
-func (fsk *FSM[Action, State, Param]) keepForcedHistory(
+func (fsk *FSM[Action, State, Param]) pushToHistoryKeeper(
+	historyKeeper *historyKeeper[Action, State, Param],
 	action Action,
 	currentState, newState State,
 	err error,
 	param ...Param,
-) (*historyKeeper[Action, State, Param], error) {
+) error {
 	finalKeeper := newHistoryKeeper[Action, State, Param](
 		fsk.historyKeeper.maxLength,
 		fsk.stackTrace,
 	)
 	if errHistory := finalKeeper.
 		Push(action, currentState, newState, err, param...); errHistory != nil {
-		return nil, fmt.Errorf("failed to push history item: %w", errHistory)
+		return fmt.Errorf("failed to push history item: %w", errHistory)
 	}
 
-	if fsk.historyKeeper.length > 0 {
-		finalKeeper.Append(fsk.historyKeeper)
+	if historyKeeper.length > 0 {
+		finalKeeper.Append(historyKeeper)
 	}
 
-	return finalKeeper, nil
+	*historyKeeper = *finalKeeper
+
+	return nil
 }
 
 func (fsk *FSM[Action, State, Param]) History() []HistoryItem[Action, State, Param] {
