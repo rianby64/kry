@@ -369,479 +369,6 @@ func Test_history_in_machine_with_incorrect_transition_error(t *testing.T) {
 	require.Equal(t, expectedHistory, machine.History())
 }
 
-func Test_history_in_machine_with_force_state(t *testing.T) {
-	const (
-		close int = iota
-		roger
-		open
-	)
-
-	machine, _ := New(close, []Transition[string, int, string]{
-		{
-			Name: "roger",
-			Src:  []int{close},
-			Dst:  roger,
-		},
-		{
-			Name: "open",
-			Src:  []int{roger},
-			Dst:  open,
-			Enter: func(ctx context.Context, fsm InstanceFSM[string, int, string], param string) error {
-				if param == "force-close" {
-					return fsm.ForceState(close)
-				}
-
-				return nil
-			},
-		},
-		{
-			Name: "close",
-			Src:  []int{open},
-			Dst:  close,
-		},
-	}, WithFullHistory())
-
-	require.NoError(t, machine.Apply(context.TODO(), "roger", roger))
-	require.Equal(t, roger, machine.Current())
-
-	require.NoError(t, machine.Apply(context.TODO(), "open", open, "force-close"))
-	require.Equal(t, close, machine.Current())
-
-	require.NoError(t, machine.Apply(context.TODO(), "roger", roger))
-	require.Equal(t, roger, machine.Current())
-
-	require.NoError(t, machine.Apply(context.TODO(), "open", open))
-	require.Equal(t, open, machine.Current())
-
-	require.NoError(t, machine.Apply(context.TODO(), "close", close))
-	require.Equal(t, close, machine.Current())
-
-	expectedHistory := []HistoryItem[string, int, string]{
-		{
-			Action: "roger",
-			From:   close,
-			To:     roger,
-			Params: nil,
-			Err:    nil,
-		},
-		{
-			Action: "open",
-			From:   roger,
-			To:     open,
-			Params: []string{"force-close"},
-			Err:    nil,
-		},
-		{
-			Action: "open",
-			From:   open,
-			To:     close,
-			Params: nil,
-			Err:    nil,
-			Forced: true,
-		},
-		{
-			Action: "roger",
-			From:   close,
-			To:     roger,
-			Params: nil,
-			Err:    nil,
-		},
-		{
-			Action: "open",
-			From:   roger,
-			To:     open,
-			Params: nil,
-			Err:    nil,
-		},
-		{
-			Action: "close",
-			From:   open,
-			To:     close,
-			Params: nil,
-			Err:    nil,
-		},
-	}
-	require.Equal(t, expectedHistory, machine.History())
-}
-
-func Test_history_in_machine_with_multiple_force_state(t *testing.T) {
-	const (
-		close int = iota
-		roger
-		open
-	)
-
-	machine, _ := New(close, []Transition[string, int, string]{
-		{
-			Name: "roger",
-			Src:  []int{close},
-			Dst:  roger,
-		},
-		{
-			Name: "open",
-			Src:  []int{roger},
-			Dst:  open,
-			Enter: func(ctx context.Context, fsm InstanceFSM[string, int, string], param string) error {
-				if param == "force-close-roger" {
-					if err := fsm.ForceState(close); err != nil {
-						return err
-					}
-
-					if err := fsm.ForceState(roger); err != nil {
-						return err
-					}
-				}
-
-				return nil
-			},
-		},
-		{
-			Name: "close",
-			Src:  []int{open},
-			Dst:  close,
-		},
-	}, WithFullHistory())
-
-	require.NoError(t, machine.Apply(context.TODO(), "roger", roger))
-	require.Equal(t, roger, machine.Current())
-
-	require.NoError(t, machine.Apply(context.TODO(), "open", open, "force-close-roger"))
-	require.Equal(t, roger, machine.Current())
-
-	require.NoError(t, machine.Apply(context.TODO(), "open", open))
-	require.Equal(t, open, machine.Current())
-
-	require.NoError(t, machine.Apply(context.TODO(), "close", close))
-	require.Equal(t, close, machine.Current())
-
-	expectedHistory := []HistoryItem[string, int, string]{
-		{
-			Action: "roger",
-			From:   close,
-			To:     roger,
-			Params: nil,
-			Err:    nil,
-		},
-		{
-			Action: "open",
-			From:   roger,
-			To:     open,
-			Params: []string{"force-close-roger"},
-			Err:    nil,
-		},
-		{
-			Action: "open",
-			From:   open,
-			To:     close,
-			Params: nil,
-			Err:    nil,
-			Forced: true,
-		},
-		{
-			Action: "open",
-			From:   close,
-			To:     roger,
-			Params: nil,
-			Err:    nil,
-			Forced: true,
-		},
-		{
-			Action: "open",
-			From:   roger,
-			To:     open,
-			Params: nil,
-			Err:    nil,
-		},
-		{
-			Action: "close",
-			From:   open,
-			To:     close,
-			Params: nil,
-			Err:    nil,
-		},
-	}
-	require.Equal(t, expectedHistory, machine.History())
-}
-
-func Test_history_in_machine_with_multiple_force_state_limited(t *testing.T) {
-	const (
-		close int = iota
-		roger
-		open
-	)
-
-	machine, _ := New(close, []Transition[string, int, string]{
-		{
-			Name: "roger",
-			Src:  []int{close},
-			Dst:  roger,
-		},
-		{
-			Name: "open",
-			Src:  []int{roger},
-			Dst:  open,
-			Enter: func(ctx context.Context, fsm InstanceFSM[string, int, string], param string) error {
-				if param == "force-close-roger" {
-					if err := fsm.ForceState(close); err != nil {
-						return err
-					}
-
-					if err := fsm.ForceState(roger); err != nil {
-						return err
-					}
-				}
-
-				return fsm.Apply(ctx, "roger-close", close, "force-close")
-			},
-		},
-		{
-			Name: "roger-close",
-			Src:  []int{roger},
-			Dst:  close,
-			Enter: func(ctx context.Context, fsm InstanceFSM[string, int, string], param string) error {
-				if param == "force-close" {
-					if err := fsm.ForceState(close); err != nil {
-						return err
-					}
-				}
-
-				return nil
-			},
-		},
-	}, WithFullHistory())
-
-	require.NoError(t, machine.Apply(context.TODO(), "roger", roger))
-	require.Equal(t, roger, machine.Current())
-
-	require.NoError(t, machine.Apply(context.TODO(), "open", open, "force-close-roger"))
-	require.Equal(t, close, machine.Current())
-
-	require.NoError(t, machine.Apply(context.TODO(), "roger", roger))
-	require.Equal(t, roger, machine.Current())
-
-	expectedHistory := []HistoryItem[string, int, string]{
-		{
-			Action: "roger",
-			From:   close,
-			To:     roger,
-			Params: nil,
-			Err:    nil,
-		},
-		{
-			Action: "open",
-			From:   roger,
-			To:     open,
-			Params: []string{"force-close-roger"},
-			Err:    nil,
-		},
-		{
-			Action: "open",
-			From:   open,
-			To:     close,
-			Params: nil,
-			Err:    nil,
-			Forced: true,
-		},
-		{
-			Action: "open",
-			From:   close,
-			To:     roger,
-			Params: nil,
-			Err:    nil,
-			Forced: true,
-		},
-		{
-			Action: "roger-close",
-			From:   roger,
-			To:     close,
-			Params: []string{"force-close"},
-			Err:    nil,
-		},
-		{
-			Action: "roger-close",
-			From:   close,
-			To:     close,
-			Params: nil,
-			Err:    nil,
-			Forced: true,
-		},
-		{
-			Action: "roger",
-			From:   close,
-			To:     roger,
-			Params: nil,
-			Err:    nil,
-		},
-	}
-	require.Equal(t, expectedHistory, machine.History())
-}
-
-func Test_history_in_machine_with_force_states(t *testing.T) {
-	const (
-		close int = iota
-		roger
-		open
-	)
-
-	machine, _ := New(close, []Transition[string, int, string]{
-		{
-			Name: "roger",
-			Src:  []int{close},
-			Dst:  roger,
-		},
-		{
-			Name: "open",
-			Src:  []int{roger},
-			Dst:  open,
-			Enter: func(ctx context.Context, fsm InstanceFSM[string, int, string], param string) error {
-				if param == "fail" {
-					return ErrNotAllowed
-				}
-
-				return nil
-			},
-		},
-		{
-			Name: "close",
-			Src:  []int{open},
-			Dst:  close,
-		},
-	}, WithFullHistory())
-
-	require.NoError(t, machine.ForceState(open))
-	require.NoError(t, machine.ForceState(close))
-
-	require.NoError(t, machine.Apply(context.TODO(), "roger", roger))
-	require.Equal(t, roger, machine.Current())
-
-	require.ErrorIs(t, machine.Apply(context.TODO(), "open", open, "fail"), ErrNotAllowed)
-	require.Equal(t, roger, machine.Current())
-
-	require.NoError(t, machine.ForceState(open))
-	require.NoError(t, machine.ForceState(roger))
-
-	expectedHistory1 := []HistoryItem[string, int, string]{
-		{
-			Action: "",
-			From:   close,
-			To:     open,
-			Params: nil,
-			Err:    nil,
-			Forced: true,
-		},
-		{
-			Action: "",
-			From:   open,
-			To:     close,
-			Params: nil,
-			Err:    nil,
-			Forced: true,
-		},
-		{
-			Action: "roger",
-			From:   close,
-			To:     roger,
-			Params: nil,
-			Err:    nil,
-		},
-		{
-			Action: "open",
-			From:   roger,
-			To:     open,
-			Params: []string{"fail"},
-			Err:    ErrNotAllowed,
-		},
-		{
-			Action: "roger",
-			From:   roger,
-			To:     open,
-			Params: nil,
-			Err:    nil,
-			Forced: true,
-		},
-		{
-			Action: "roger",
-			From:   open,
-			To:     roger,
-			Params: nil,
-			Err:    nil,
-			Forced: true,
-		},
-	}
-
-	require.Equal(t, expectedHistory1, machine.History())
-
-	require.NoError(t, machine.Apply(context.TODO(), "open", open))
-	require.Equal(t, open, machine.Current())
-
-	require.NoError(t, machine.Apply(context.TODO(), "close", close))
-	require.Equal(t, close, machine.Current())
-
-	expectedHistory2 := []HistoryItem[string, int, string]{
-		{
-			Action: "",
-			From:   close,
-			To:     open,
-			Params: nil,
-			Err:    nil,
-			Forced: true,
-		},
-		{
-			Action: "",
-			From:   open,
-			To:     close,
-			Params: nil,
-			Err:    nil,
-			Forced: true,
-		},
-		{
-			Action: "roger",
-			From:   close,
-			To:     roger,
-			Params: nil,
-			Err:    nil,
-		},
-		{
-			Action: "open",
-			From:   roger,
-			To:     open,
-			Params: []string{"fail"},
-			Err:    ErrNotAllowed,
-		},
-		{
-			Action: "roger",
-			From:   roger,
-			To:     open,
-			Params: nil,
-			Err:    nil,
-			Forced: true,
-		},
-		{
-			Action: "roger",
-			From:   open,
-			To:     roger,
-			Params: nil,
-			Err:    nil,
-			Forced: true,
-		},
-		{
-			Action: "open",
-			From:   roger,
-			To:     open,
-			Params: nil,
-			Err:    nil,
-		},
-		{
-			Action: "close",
-			From:   open,
-			To:     close,
-			Params: nil,
-			Err:    nil,
-		},
-	}
-	require.Equal(t, expectedHistory2, machine.History())
-}
-
 func Test_history_no_size_limit_stacktrace(t *testing.T) {
 	hk := newHistoryKeeper[string, int, string](fullHistorySize, true)
 
@@ -871,4 +398,156 @@ func Test_history_no_size_limit_stacktrace(t *testing.T) {
 	require.Equal(t, expectedHistory1[0].Err, item.Err)
 	require.NotEmpty(t, item.Stack)
 	require.Equal(t, expectedHistory1[0].Reason, item.Reason)
+}
+
+func Test_history_in_machine_apply_within_apply_case1(t *testing.T) {
+	const (
+		close int = iota
+		roger1
+		roger2
+		roger3
+		roger4
+		roger5
+		open
+	)
+
+	machine, _ := New(close, []Transition[string, int, string]{
+		{
+			Name: "roger",
+			Src: []int{
+				close,
+			},
+			Dst: roger1,
+			Enter: func(ctx context.Context, fsm InstanceFSM[string, int, string], param string) error {
+				return fsm.Apply(ctx, "roger", roger2, param)
+			},
+		},
+		{
+			Name: "roger",
+			Src: []int{
+				close,
+				roger1,
+			},
+			Dst: roger2,
+			Enter: func(ctx context.Context, fsm InstanceFSM[string, int, string], param string) error {
+				return fsm.Apply(ctx, "roger", roger3, param)
+			},
+		},
+		{
+			Name: "roger",
+			Src: []int{
+				close,
+				roger1,
+				roger2,
+			},
+			Dst: roger3,
+			Enter: func(ctx context.Context, fsm InstanceFSM[string, int, string], param string) error {
+				return fsm.Apply(ctx, "roger", roger4, param)
+			},
+		},
+		{
+			Name: "roger",
+			Src: []int{
+				close,
+				roger1,
+				roger2,
+				roger3,
+			},
+			Dst: roger4,
+			Enter: func(ctx context.Context, fsm InstanceFSM[string, int, string], param string) error {
+				return fsm.Apply(ctx, "roger", roger5, param)
+			},
+		},
+		{
+			Name: "roger",
+			Src: []int{
+				close,
+				roger1,
+				roger2,
+				roger3,
+				roger4,
+			},
+			Dst: roger5,
+			Enter: func(ctx context.Context, fsm InstanceFSM[string, int, string], param string) error {
+				return nil
+			},
+		},
+		{
+			Name: "open",
+			Src:  []int{roger5},
+			Dst:  open,
+			Enter: func(ctx context.Context, fsm InstanceFSM[string, int, string], param string) error {
+				return nil
+			},
+		},
+		{
+			Name: "close",
+			Src:  []int{open},
+			Dst:  close,
+		},
+	}, WithFullHistory())
+
+	const emptyString = ""
+
+	require.NoError(t, machine.Apply(context.TODO(), "roger", roger1, emptyString))
+	require.Equal(t, roger5, machine.Current())
+
+	require.NoError(t, machine.Apply(context.TODO(), "open", open, emptyString))
+	require.Equal(t, open, machine.Current())
+
+	require.NoError(t, machine.Apply(context.TODO(), "close", close, emptyString))
+	require.Equal(t, close, machine.Current())
+
+	expectedHistory := []HistoryItem[string, int, string]{
+		{
+			Action: "roger",
+			From:   close,
+			To:     roger1,
+			Params: []string{emptyString},
+			Err:    nil,
+		},
+		{
+			Action: "roger",
+			From:   roger1,
+			To:     roger2,
+			Params: []string{emptyString},
+			Err:    nil,
+		},
+		{
+			Action: "roger",
+			From:   roger2,
+			To:     roger3,
+			Params: []string{emptyString},
+			Err:    nil,
+		},
+		{
+			Action: "roger",
+			From:   roger3,
+			To:     roger4,
+			Params: []string{emptyString},
+			Err:    nil,
+		},
+		{
+			Action: "roger",
+			From:   roger4,
+			To:     roger5,
+			Params: []string{emptyString},
+			Err:    nil,
+		},
+		{
+			Action: "open",
+			From:   roger5,
+			To:     open,
+			Params: []string{emptyString},
+			Err:    nil,
+		},
+		{
+			Action: "close",
+			From:   open,
+			To:     close,
+			Params: []string{emptyString},
+			Err:    nil,
+		},
+	}
+	require.Equal(t, expectedHistory, machine.History())
 }

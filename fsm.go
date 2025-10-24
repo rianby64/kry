@@ -27,8 +27,6 @@ type InstanceFSM[Action, State comparable, Param any] interface {
 
 	Event(ctx context.Context, action Action, param ...Param) error
 	Apply(ctx context.Context, action Action, newState State, param ...Param) error
-
-	ForceState(state State) error
 }
 
 type handlerNoParams[Action, State comparable, Param any] = func(ctx context.Context, instance InstanceFSM[Action, State, Param]) error
@@ -63,16 +61,16 @@ type FSM[Action, State comparable, Param any] struct {
 	id            uint64
 	currentState  State
 	currentAction Action
-	states        map[State]struct{}
-	path          map[Action]map[State]map[State]callbacks[Action, State, Param] // action -> dst state -> src state -> callbacks
-	pathByMatch   map[Action]map[State][]matchState[Action, State, Param]        // action -> dst state -> list of match conditions for dst states
 
-	events              map[Action]Transition[Action, State, Param]
-	canTriggerEvents    bool
-	graphic             string
-	historyKeeper       *historyKeeper[Action, State, Param]
-	forcedHistoryKeeper *historyKeeper[Action, State, Param]
-	stackTrace          bool
+	states      map[State]struct{}
+	path        map[Action]map[State]map[State]callbacks[Action, State, Param] // action -> dst state -> src state -> callbacks
+	pathByMatch map[Action]map[State][]matchState[Action, State, Param]        // action -> dst state -> list of match conditions for dst states
+	events      map[Action]Transition[Action, State, Param]                    // action -> transition
+
+	canTriggerEvents bool
+	graphic          string
+	historyKeeper    *historyKeeper[Action, State, Param]
+	stackTrace       bool
 }
 
 // New creates a new FSM instance with the given initial state, transitions, and options.
@@ -117,9 +115,6 @@ func New[Action, State comparable, Param any](
 		historyKeeper: newHistoryKeeper[Action, State, Param](
 			finalOptions.historySize, finalOptions.stackTrace,
 		),
-		forcedHistoryKeeper: newHistoryKeeper[Action, State, Param](
-			finalOptions.historySize, finalOptions.stackTrace,
-		),
 		stackTrace: finalOptions.stackTrace,
 	}, nil
 }
@@ -130,22 +125,4 @@ func (fsk *FSM[Action, State, Param]) String() string {
 
 func (fsk *FSM[Action, State, Param]) Current() State {
 	return fsk.currentState
-}
-
-func (fsk *FSM[Action, State, Param]) ForceState(state State) error {
-	_, ok := fsk.states[state]
-	if !ok {
-		return fmt.Errorf("state %w: %v", ErrUnknown, state)
-	}
-
-	currentState := fsk.currentState
-	currentAction := fsk.currentAction
-	fsk.currentState = state
-
-	if errHistory := fsk.forcedHistoryKeeper.
-		PushForced(currentAction, currentState, state, nil); errHistory != nil {
-		return fmt.Errorf("failed to push history item: %w", errHistory)
-	}
-
-	return nil
 }
