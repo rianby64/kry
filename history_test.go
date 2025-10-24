@@ -714,3 +714,72 @@ func Test_history_in_machine_apply_within_apply_case2(t *testing.T) {
 		require.ErrorIs(t, item.Err, expectedHistory[index].Err)
 	}
 }
+
+func Test_history_in_machine_apply_within_apply_case3(t *testing.T) {
+	const (
+		close int = iota
+		open
+	)
+
+	machine, _ := New(open, []Transition[string, int, string]{
+		{
+			Name: "open",
+			Src:  []int{close},
+			Dst:  open,
+			Enter: func(ctx context.Context, fsm InstanceFSM[string, int, string], param string) error {
+				return nil
+			},
+		},
+		{
+			Name: "close",
+			Src:  []int{open},
+			Dst:  close,
+		},
+	}, WithFullHistory())
+
+	const emptyString = ""
+
+	require.NoError(t, machine.Apply(context.TODO(), "close", close, emptyString))
+	require.Equal(t, close, machine.Current())
+
+	require.ErrorIs(t, machine.Apply(context.TODO(), "unknown", open, emptyString), ErrUnknown)
+	require.Equal(t, close, machine.Current())
+
+	require.NoError(t, machine.Apply(context.TODO(), "open", open, emptyString))
+	require.Equal(t, open, machine.Current())
+
+	expectedHistory := []HistoryItem[string, int, string]{
+		{
+			Action: "close",
+			From:   open,
+			To:     close,
+			Params: []string{emptyString},
+			Err:    nil,
+		},
+		{
+			Action: "unknown",
+			From:   close,
+			To:     open,
+			Params: []string{emptyString},
+			Err:    ErrUnknown,
+		},
+		{
+			Action: "open",
+			From:   close,
+			To:     open,
+			Params: []string{emptyString},
+			Err:    nil,
+		},
+	}
+
+	history := machine.History()
+	require.Len(t, history, len(expectedHistory))
+
+	for index, item := range history {
+		require.Equal(t, expectedHistory[index].Action, item.Action)
+		require.Equal(t, expectedHistory[index].From, item.From)
+		require.Equal(t, expectedHistory[index].To, item.To)
+		require.Equal(t, expectedHistory[index].Params, item.Params)
+		require.ErrorIs(t, item.Err, expectedHistory[index].Err)
+	}
+}

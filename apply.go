@@ -105,7 +105,9 @@ func (fsk *FSM[Action, State, Param]) applyByMatch(ctx context.Context, action A
 	return false, nil
 }
 
-func (fsk *FSM[Action, State, Param]) switchEventByLengthParams(ctx context.Context, stateTransition callbacks[Action, State, Param], param ...Param) error {
+func (fsk *FSM[Action, State, Param]) switchEventByLengthParams(
+	ctx context.Context, stateTransition callbacks[Action, State, Param], param ...Param,
+) error {
 	switch len(param) {
 	case 0:
 		if stateTransition.EnterNoParams != nil {
@@ -137,7 +139,9 @@ func (fsk *FSM[Action, State, Param]) switchEventByLengthParams(ctx context.Cont
 	return nil
 }
 
-func (fsk *FSM[Action, State, Param]) Event(ctx context.Context, action Action, param ...Param) error {
+func (fsk *FSM[Action, State, Param]) Event(
+	ctx context.Context, action Action, param ...Param,
+) error {
 	if !fsk.canTriggerEvents {
 		return fmt.Errorf("event %v: %w", action, ErrNotAllowed)
 	}
@@ -156,7 +160,9 @@ func (fsk *FSM[Action, State, Param]) Event(ctx context.Context, action Action, 
 	return nil
 }
 
-func (fsk *FSM[Action, State, Param]) Apply(ctx context.Context, action Action, newState State, param ...Param) error {
+func (fsk *FSM[Action, State, Param]) Apply(
+	ctx context.Context, action Action, newState State, param ...Param,
+) error {
 	currentState := fsk.currentState
 
 	ctxWithLoop, err := fsk.checkLoop(ctx, currentState, newState)
@@ -165,7 +171,14 @@ func (fsk *FSM[Action, State, Param]) Apply(ctx context.Context, action Action, 
 	}
 
 	if _, ok := fsk.path[action]; !ok {
-		return fmt.Errorf("action %w: %v", ErrUnknown, action)
+		err = ErrUnknown
+		if errHistory := fsk.historyKeeper.Push(
+			action, currentState, newState, err, param...,
+		); errHistory != nil {
+			err = fmt.Errorf("%w: failed to push history item: %w", err, errHistory)
+		}
+
+		return fmt.Errorf("action %w: %v", err, action)
 	}
 
 	if applied, err := fsk.applyByExact(ctxWithLoop, action, newState, param...); err != nil {
@@ -181,8 +194,9 @@ func (fsk *FSM[Action, State, Param]) Apply(ctx context.Context, action Action, 
 	}
 
 	err = ErrNotFound
-	errHistory := fsk.historyKeeper.Push(action, currentState, newState, ErrNotFound, param...)
-	if errHistory != nil {
+	if errHistory := fsk.historyKeeper.Push(
+		action, currentState, newState, err, param...,
+	); errHistory != nil {
 		err = fmt.Errorf("%w: failed to push history item: %w", err, errHistory)
 	}
 
