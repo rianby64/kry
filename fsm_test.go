@@ -53,37 +53,6 @@ func Test_set_transitions_string_int_ok(t *testing.T) {
 	require.Equal(t, open, machine.Current())
 }
 
-func Test_set_transitions_force_state_ok(t *testing.T) {
-	const (
-		close int = iota
-		open
-	)
-
-	machine, _ := New(close, []Transition[string, int, any]{
-		{Name: "open", Src: []int{close}, Dst: open},
-		{Name: "close", Src: []int{open}, Dst: close},
-	})
-
-	require.NoError(t, machine.ForceState(open))
-	require.Equal(t, open, machine.Current())
-}
-
-func Test_set_transitions_force_incorrect_state_ok(t *testing.T) {
-	const (
-		close int = iota
-		open
-		incorrect
-	)
-
-	machine, _ := New(close, []Transition[string, int, any]{
-		{Name: "open", Src: []int{close}, Dst: open},
-		{Name: "close", Src: []int{open}, Dst: close},
-	})
-
-	require.ErrorIs(t, machine.ForceState(incorrect), ErrUnknown)
-	require.Equal(t, close, machine.Current())
-}
-
 func Test_incorrect_event(t *testing.T) {
 	const (
 		close int = iota
@@ -156,40 +125,6 @@ func Test_execute_Enter_one_time_one_parameter(t *testing.T) {
 	require.Nil(t, machine.Apply(context.TODO(), "open", open, Param{Value: "test"}))
 	require.Equal(t, open, machine.Current())
 	require.True(t, calledEnter)
-}
-
-func Test_execute_force_state(t *testing.T) {
-	const (
-		close int = iota
-		open
-	)
-
-	machine, _ := New(
-		close, // Initial state
-		[]Transition[string, int, any]{
-			{
-				Name: "open",
-				Src:  []int{close}, Dst: open,
-				EnterVariadic: func(ctx context.Context, instance InstanceFSM[string, int, any], param ...any) error {
-					require.Equal(t, open, instance.Current())
-					require.NoError(t, instance.ForceState(close))
-					return nil
-				},
-			},
-			{
-				Name: "close",
-				Src:  []int{open}, Dst: close,
-				EnterVariadic: func(ctx context.Context, instance InstanceFSM[string, int, any], param ...any) error {
-					t.Log("should not be called")
-					t.FailNow()
-					return nil
-				},
-			},
-		},
-	)
-
-	require.Nil(t, machine.Apply(context.TODO(), "open", open))
-	require.Equal(t, close, machine.Current())
 }
 
 func Test_execute_event_case2(t *testing.T) {

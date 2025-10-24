@@ -97,6 +97,12 @@ func main() {
 - Support for destination transitions matching via function. (All 5xx, 4xx, etc.)
 - Make this lib safe for concurrent use
 
+## Design considerations
+
+1. This library does not support `ForceState` as it is dangerous and breaks the FSM concept.
+   So, if you encounter such a need, please rethink your design.
+2. Keep the API simple and easy to use.
+
 ## License
 
 This project is licensed under the MIT License.
