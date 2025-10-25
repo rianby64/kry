@@ -129,14 +129,12 @@ func (hk *historyKeeper[Action, State, Param]) Push(action Action, from State, t
 }
 
 func (hk *historyKeeper[Action, State, Param]) Items() []HistoryItem[Action, State, Param] {
-	items := make([]HistoryItem[Action, State, Param], hk.length)
+	items := make([]HistoryItem[Action, State, Param], 0, hk.length)
 
-	i := 0
 	current := hk.head
 	for current != nil {
-		items[i] = *current.HistoryItem
+		items = append(items, *current.HistoryItem)
 		current = current.Next
-		i++
 	}
 
 	return items
