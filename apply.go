@@ -174,7 +174,7 @@ func (fsk *FSM[Action, State, Param]) Apply(
 			err := fmt.Errorf("%v", errPanic)
 
 			if errHistory := fsk.historyKeeper.Push(
-				action, currentState, newState, err, 5, param...,
+				action, currentState, newState, err, defaultSkipStackTrace, param...,
 			); errHistory != nil {
 				err = fmt.Errorf("%w: failed to push history item: %w", err, errHistory)
 			}

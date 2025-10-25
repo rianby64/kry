@@ -27,14 +27,11 @@ func Test_panic_case1(t *testing.T) {
 			Src:  []int{open},
 			Dst:  close,
 			EnterNoParams: func(ctx context.Context, instance InstanceFSM[string, int, any]) error {
-				var a []int
-				_ = a[1] // this will cause a panic
-
-				return nil
+				panic("intentional panic")
 			},
 		},
 	}, WithPanicHandler(func(ctx context.Context, panicReason any) {
-		assert.Equal(t, "runtime error: index out of range [1] with length 0", fmt.Sprint(panicReason))
+		assert.Equal(t, "intentional panic", fmt.Sprint(panicReason))
 	}), WithFullHistory(), WithEnabledStackTrace())
 
 	require.NoError(t, machine.Apply(ctx, "open", open))
@@ -66,5 +63,5 @@ func Test_panic_case1(t *testing.T) {
 		assert.Equal(t, expectedHistory[index].Params, historyItem.Params)
 	}
 
-	require.Contains(t, history[1].StackTrace, "panic_test.go:31")
+	require.Contains(t, history[1].StackTrace, "panic_test.go:30")
 }
