@@ -1,12 +1,15 @@
 package kry
 
+import "context"
+
 const (
 	fullHistorySize = -1
 )
 
 type Options struct {
-	historySize int
-	stackTrace  bool
+	historySize  int
+	stackTrace   bool
+	panicHandler panicHandler
 }
 
 // WithHistory enables history tracking for the FSM with a specified size.
@@ -30,6 +33,16 @@ func WithFullHistory() func(o *Options) *Options {
 func WithEnabledStackTrace() func(o *Options) *Options {
 	return func(o *Options) *Options {
 		o.stackTrace = true
+
+		return o
+	}
+}
+
+type panicHandler = func(ctx context.Context, panicReason any)
+
+func WithPanicHandler(handler panicHandler) func(o *Options) *Options {
+	return func(o *Options) *Options {
+		o.panicHandler = handler
 
 		return o
 	}

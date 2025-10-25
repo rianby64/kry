@@ -30,7 +30,7 @@ func (fsk *FSM[Action, State, Param]) apply(
 		fsk.historyKeeper = currentHistoryKeeper
 	}()
 
-	if err := fsk.switchEventByLengthParams(
+	if err := fsk.applyTransitionByLengthParams(
 		ctx, callbacks, param...,
 	); err != nil {
 		fsk.currentAction = currentAction
@@ -105,7 +105,7 @@ func (fsk *FSM[Action, State, Param]) applyByMatch(ctx context.Context, action A
 	return false, nil
 }
 
-func (fsk *FSM[Action, State, Param]) switchEventByLengthParams(
+func (fsk *FSM[Action, State, Param]) applyTransitionByLengthParams(
 	ctx context.Context, stateTransition callbacks[Action, State, Param], param ...Param,
 ) error {
 	switch len(param) {
@@ -165,6 +165,30 @@ func (fsk *FSM[Action, State, Param]) Apply(
 ) error {
 	currentState := fsk.currentState
 
+	defer func() {
+		if errPanic := recover(); errPanic != nil {
+			defer func() {
+				fsk.currentState = currentState // rollback state
+			}()
+
+			err := fmt.Errorf("%v", errPanic)
+
+			if errHistory := fsk.historyKeeper.Push(
+				action, currentState, newState, err, 5, param...,
+			); errHistory != nil {
+				err = fmt.Errorf("%w: failed to push history item: %w", err, errHistory)
+			}
+
+			if fsk.panicHandler != nil {
+				fsk.panicHandler(ctx, errPanic)
+
+				return
+			}
+
+			panic(err)
+		}
+	}()
+
 	ctxWithLoop, err := fsk.checkLoop(ctx, currentState, newState)
 	if err != nil {
 		return fmt.Errorf("failed to apply (%v): %w", action, err)
@@ -173,7 +197,7 @@ func (fsk *FSM[Action, State, Param]) Apply(
 	if _, ok := fsk.path[action]; !ok {
 		err = ErrUnknown
 		if errHistory := fsk.historyKeeper.Push(
-			action, currentState, newState, err, param...,
+			action, currentState, newState, err, 3, param...,
 		); errHistory != nil {
 			err = fmt.Errorf("%w: failed to push history item: %w", err, errHistory)
 		}
@@ -195,7 +219,7 @@ func (fsk *FSM[Action, State, Param]) Apply(
 
 	err = ErrNotFound
 	if errHistory := fsk.historyKeeper.Push(
-		action, currentState, newState, err, param...,
+		action, currentState, newState, err, 3, param...,
 	); errHistory != nil {
 		err = fmt.Errorf("%w: failed to push history item: %w", err, errHistory)
 	}

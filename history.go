@@ -8,14 +8,18 @@ import (
 	"github.com/fxamacker/cbor/v2"
 )
 
+const (
+	defaultSkipStackTrace = 3
+)
+
 type HistoryItem[Action, State comparable, Param any] struct {
-	Action Action
-	From   State
-	To     State
-	Params []Param
-	Err    error
-	Stack  string
-	Reason string
+	Action     Action
+	From       State
+	To         State
+	Params     []Param
+	Err        error
+	StackTrace string
+	Reason     string
 }
 
 type historyItem[Action, State comparable, Param any] struct {
@@ -60,7 +64,7 @@ func cloneParams[Param any](params ...Param) ([]Param, error) {
 	return cloned, nil
 }
 
-func (hk *historyKeeper[Action, State, Param]) Push(action Action, from State, to State, err error, params ...Param) error {
+func (hk *historyKeeper[Action, State, Param]) Push(action Action, from State, to State, err error, skipStackTrace int, params ...Param) error {
 	if hk.maxLength == 0 {
 		return nil
 	}
@@ -85,7 +89,7 @@ func (hk *historyKeeper[Action, State, Param]) Push(action Action, from State, t
 		const depth = 64
 		pcs := make([]uintptr, depth)
 		// skip 3 frames: runtime.Callers -> push -> Push
-		n := runtime.Callers(3, pcs)
+		n := runtime.Callers(skipStackTrace, pcs)
 		pcs = pcs[:n]
 
 		var b strings.Builder
@@ -98,7 +102,7 @@ func (hk *historyKeeper[Action, State, Param]) Push(action Action, from State, t
 			fmt.Fprintf(&b, "    %s\n        %s:%d\n", frame.Function, frame.File, frame.Line)
 		}
 
-		item.Stack = b.String()
+		item.StackTrace = b.String()
 	}
 
 	if hk.length == 0 {
@@ -182,7 +186,10 @@ func (fsk *FSM[Action, State, Param]) pushToHistoryKeeper(
 		fsk.stackTrace,
 	)
 	if errHistory := finalKeeper.
-		Push(action, currentState, newState, err, param...); errHistory != nil {
+		Push(
+			action, currentState, newState, err,
+			defaultSkipStackTrace, param...,
+		); errHistory != nil {
 		return fmt.Errorf("failed to push history item: %w", errHistory)
 	}
 
