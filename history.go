@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"runtime"
 	"strings"
+	"sync"
 
 	"github.com/fxamacker/cbor/v2"
 )
@@ -33,6 +34,8 @@ type historyKeeper[Action, State comparable, Param any] struct {
 	tail       *historyItem[Action, State, Param]
 	length     int
 	stackTrace bool
+
+	locker sync.Mutex
 }
 
 func newHistoryKeeper[Action, State comparable, Param any](size int, stackTrace bool) *historyKeeper[Action, State, Param] {
@@ -42,6 +45,7 @@ func newHistoryKeeper[Action, State comparable, Param any](size int, stackTrace 
 		tail:       nil,
 		length:     0,
 		stackTrace: stackTrace,
+		locker:     sync.Mutex{},
 	}
 }
 
@@ -105,6 +109,9 @@ func (hk *historyKeeper[Action, State, Param]) Push(action Action, from State, t
 		item.StackTrace = b.String()
 	}
 
+	hk.locker.Lock()
+	defer hk.locker.Unlock()
+
 	if hk.length == 0 {
 		hk.head = item
 		hk.tail = item
@@ -129,6 +136,9 @@ func (hk *historyKeeper[Action, State, Param]) Push(action Action, from State, t
 }
 
 func (hk *historyKeeper[Action, State, Param]) Items() []HistoryItem[Action, State, Param] {
+	hk.locker.Lock()
+	defer hk.locker.Unlock()
+
 	items := make([]HistoryItem[Action, State, Param], 0, hk.length)
 
 	current := hk.head
@@ -144,6 +154,9 @@ func (hk *historyKeeper[Action, State, Param]) Append(other *historyKeeper[Actio
 	if other.length == 0 {
 		return
 	}
+
+	hk.locker.Lock()
+	defer hk.locker.Unlock()
 
 	if hk.tail == nil {
 		hk.head = other.head
