@@ -5,8 +5,6 @@ import (
 	"runtime"
 	"strings"
 	"sync"
-
-	"github.com/fxamacker/cbor/v2"
 )
 
 const (
@@ -36,9 +34,15 @@ type historyKeeper[Action, State comparable, Param any] struct {
 	stackTrace bool
 
 	locker sync.Mutex
+
+	cloneHandler func(params ...Param) ([]Param, error)
 }
 
-func newHistoryKeeper[Action, State comparable, Param any](size int, stackTrace bool) *historyKeeper[Action, State, Param] {
+func newHistoryKeeper[Action, State comparable, Param any](
+	size int,
+	stackTrace bool,
+	cloneHandler CloneHandler[Param],
+) *historyKeeper[Action, State, Param] {
 	return &historyKeeper[Action, State, Param]{
 		maxLength:  size,
 		head:       nil,
@@ -46,24 +50,19 @@ func newHistoryKeeper[Action, State comparable, Param any](size int, stackTrace 
 		length:     0,
 		stackTrace: stackTrace,
 		locker:     sync.Mutex{},
+
+		cloneHandler: cloneHandler,
 	}
 }
 
-func cloneParams[Param any](params ...Param) ([]Param, error) {
+func cloneHandler[Param any](params ...Param) ([]Param, error) {
 	if len(params) == 0 {
 		return params, nil
 	}
 
-	data, err := cbor.Marshal(params)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal params: %w", err)
-	}
+	cloned := make([]Param, len(params))
 
-	var cloned []Param
-
-	if err := cbor.Unmarshal(data, &cloned); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal params: %w", err)
-	}
+	copy(cloned, params)
 
 	return cloned, nil
 }
@@ -73,7 +72,7 @@ func (hk *historyKeeper[Action, State, Param]) Push(action Action, from State, t
 		return nil
 	}
 
-	cloneParams, errClone := cloneParams(params...)
+	cloneParams, errClone := hk.cloneHandler(params...)
 	if errClone != nil {
 		return fmt.Errorf("failed to clone params: %w", errClone)
 	}
@@ -192,9 +191,10 @@ func (fsk *FSM[Action, State, Param]) intermediateKeeper(
 	err error,
 	param ...Param,
 ) (*historyKeeper[Action, State, Param], error) {
-	finalKeeper := newHistoryKeeper[Action, State, Param](
+	finalKeeper := newHistoryKeeper[Action, State](
 		fsk.historyKeeper.maxLength,
 		fsk.stackTrace,
+		fsk.cloneHandler,
 	)
 	if errHistory := finalKeeper.
 		Push(action, from, to, err, defaultSkipStackTrace, param...,

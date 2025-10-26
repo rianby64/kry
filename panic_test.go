@@ -30,9 +30,13 @@ func Test_panic_case1(t *testing.T) {
 				panic("intentional panic")
 			},
 		},
-	}, WithPanicHandler(func(ctx context.Context, panicReason any) {
-		assert.Equal(t, "intentional panic", fmt.Sprint(panicReason))
-	}), WithFullHistory(), WithEnabledStackTrace())
+	},
+		WithPanicHandler[any](func(ctx context.Context, panicReason any) {
+			assert.Equal(t, "intentional panic", fmt.Sprint(panicReason))
+		}),
+		WithFullHistory[any](),
+		WithEnabledStackTrace[any](),
+	)
 
 	require.NoError(t, machine.Apply(ctx, "open", open))
 	require.Equal(t, open, machine.Current())

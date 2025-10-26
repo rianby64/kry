@@ -23,9 +23,10 @@ func (fsk *FSM[Action, State, Param]) apply(
 	fsk.currentState = to
 	fsk.previousState = currentState
 
-	historyKeeper := newHistoryKeeper[Action, State, Param](
+	historyKeeper := newHistoryKeeper[Action, State](
 		fsk.historyKeeper.maxLength,
 		fsk.stackTrace,
+		fsk.cloneHandler,
 	)
 	fsk.historyKeeper = historyKeeper
 

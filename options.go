@@ -6,15 +6,16 @@ const (
 	fullHistorySize = -1
 )
 
-type Options struct {
+type Options[Param any] struct {
 	historySize  int
 	stackTrace   bool
-	panicHandler panicHandler
+	panicHandler PanicHandler
+	cloneHandler CloneHandler[Param]
 }
 
 // WithHistory enables history tracking for the FSM with a specified size.
-func WithHistory(size int) func(o *Options) *Options {
-	return func(o *Options) *Options {
+func WithHistory[Param any](size int) func(o *Options[Param]) *Options[Param] {
+	return func(o *Options[Param]) *Options[Param] {
 		o.historySize = size
 
 		return o
@@ -22,27 +23,62 @@ func WithHistory(size int) func(o *Options) *Options {
 }
 
 // WithFullHistory enables full history tracking for the FSM, so no size limit.
-func WithFullHistory() func(o *Options) *Options {
-	return func(o *Options) *Options {
+func WithFullHistory[Param any]() func(o *Options[Param]) *Options[Param] {
+	return func(o *Options[Param]) *Options[Param] {
 		o.historySize = fullHistorySize
 
 		return o
 	}
 }
 
-func WithEnabledStackTrace() func(o *Options) *Options {
-	return func(o *Options) *Options {
+// WithEnabledStackTrace enables stack trace capturing for each history item.
+func WithEnabledStackTrace[Param any]() func(o *Options[Param]) *Options[Param] {
+	return func(o *Options[Param]) *Options[Param] {
 		o.stackTrace = true
 
 		return o
 	}
 }
 
-type panicHandler = func(ctx context.Context, panicReason any)
+type PanicHandler = func(ctx context.Context, panicReason any)
 
-func WithPanicHandler(handler panicHandler) func(o *Options) *Options {
-	return func(o *Options) *Options {
+// WithPanicHandler sets a custom panic handler for the FSM.
+func WithPanicHandler[Param any](handler PanicHandler) func(o *Options[Param]) *Options[Param] {
+	return func(o *Options[Param]) *Options[Param] {
 		o.panicHandler = handler
+
+		return o
+	}
+}
+
+type CloneHandler[Param any] = func(params ...Param) ([]Param, error)
+
+// WithCloneHandler sets a custom clone handler for the FSM.
+//
+// As example, could be used to deep copy parameters if they are complex types.
+//
+//	import "github.com/fxamacker/cbor/v2"
+//	func cloneHandler[Param any](params ...Param) ([]Param, error) {
+//		if len(params) == 0 {
+//			return params, nil
+//		}
+//
+//		data, err := cbor.Marshal(params)
+//		if err != nil {
+//			return nil, fmt.Errorf("failed to marshal params: %w", err)
+//		}
+//
+//		var cloned []Param
+//
+//		if err := cbor.Unmarshal(data, &cloned); err != nil {
+//			return nil, fmt.Errorf("failed to unmarshal params: %w", err)
+//		}
+//
+//		return cloned, nil
+//	}
+func WithCloneHandler[Param any](handler CloneHandler[Param]) func(o *Options[Param]) *Options[Param] {
+	return func(o *Options[Param]) *Options[Param] {
+		o.cloneHandler = handler
 
 		return o
 	}

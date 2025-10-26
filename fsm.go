@@ -73,7 +73,8 @@ type FSM[Action, State comparable, Param any] struct {
 	graphic          string
 	historyKeeper    *historyKeeper[Action, State, Param]
 	stackTrace       bool
-	panicHandler     panicHandler
+	panicHandler     PanicHandler
+	cloneHandler     CloneHandler[Param]
 }
 
 // New creates a new FSM instance with the given initial state, transitions, and options.
@@ -84,11 +85,15 @@ type FSM[Action, State comparable, Param any] struct {
 func New[Action, State comparable, Param any](
 	initialState State,
 	transitions []Transition[Action, State, Param],
-	options ...func(o *Options) *Options,
+	options ...func(o *Options[Param]) *Options[Param],
 ) (*FSM[Action, State, Param], error) {
-	finalOptions := &Options{}
+	finalOptions := &Options[Param]{}
 	for _, opt := range options {
 		finalOptions = opt(finalOptions)
+	}
+
+	if finalOptions.cloneHandler == nil {
+		finalOptions.cloneHandler = cloneHandler[Param]
 	}
 
 	path, pathByMatch, states, events,
@@ -115,11 +120,14 @@ func New[Action, State comparable, Param any](
 		events:           events,
 		canTriggerEvents: canTriggerEvents,
 		graphic:          graphic,
-		historyKeeper: newHistoryKeeper[Action, State, Param](
-			finalOptions.historySize, finalOptions.stackTrace,
+		historyKeeper: newHistoryKeeper[Action, State](
+			finalOptions.historySize,
+			finalOptions.stackTrace,
+			finalOptions.cloneHandler,
 		),
 		stackTrace:   finalOptions.stackTrace,
 		panicHandler: finalOptions.panicHandler,
+		cloneHandler: finalOptions.cloneHandler,
 	}, nil
 }
 

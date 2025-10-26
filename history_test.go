@@ -9,7 +9,7 @@ import (
 )
 
 func Test_history_size_limit_to_3(t *testing.T) {
-	hk := newHistoryKeeper[string, int, string](2, false)
+	hk := newHistoryKeeper[string, int, string](2, false, cloneHandler)
 
 	if err := hk.Push("action1", 0, 1, nil, 3, "param1"); err != nil {
 		t.Fatalf("failed to push history item: %v", err)
@@ -80,7 +80,7 @@ func Test_history_size_limit_to_3(t *testing.T) {
 }
 
 func Test_history_no_size_limit(t *testing.T) {
-	hk := newHistoryKeeper[string, int, string](fullHistorySize, false)
+	hk := newHistoryKeeper[string, int, string](fullHistorySize, false, cloneHandler)
 
 	if err := hk.Push("action1", 0, 1, nil, 3, "param1"); err != nil {
 		t.Fatalf("failed to push history item: %v", err)
@@ -166,7 +166,7 @@ func Test_history_in_machine(t *testing.T) {
 	machine, _ := New(close, []Transition[string, int, any]{
 		{Name: "open", Src: []int{close}, Dst: open},
 		{Name: "close", Src: []int{open}, Dst: close},
-	}, WithFullHistory())
+	}, WithFullHistory[any]())
 
 	require.NoError(t, machine.Apply(context.TODO(), "open", open))
 	require.Equal(t, open, machine.Current())
@@ -202,7 +202,7 @@ func Test_history_in_machine_limited(t *testing.T) {
 	machine, _ := New(close, []Transition[string, int, any]{
 		{Name: "open", Src: []int{close}, Dst: open},
 		{Name: "close", Src: []int{open}, Dst: close},
-	}, WithHistory(1))
+	}, WithHistory[any](1))
 
 	require.NoError(t, machine.Apply(context.TODO(), "open", open))
 	require.Equal(t, open, machine.Current())
@@ -252,7 +252,7 @@ func Test_history_in_machine_with_error_from_enter(t *testing.T) {
 			Src:  []int{open},
 			Dst:  close,
 		},
-	}, WithFullHistory())
+	}, WithFullHistory[string]())
 
 	require.NoError(t, machine.Apply(context.TODO(), "roger", roger))
 	require.Equal(t, roger, machine.Current())
@@ -322,7 +322,7 @@ func Test_history_in_machine_with_incorrect_transition_error(t *testing.T) {
 			Src:  []int{open},
 			Dst:  close,
 		},
-	}, WithFullHistory())
+	}, WithFullHistory[string]())
 
 	require.NoError(t, machine.Apply(context.TODO(), "roger", roger))
 	require.Equal(t, roger, machine.Current())
@@ -370,7 +370,7 @@ func Test_history_in_machine_with_incorrect_transition_error(t *testing.T) {
 }
 
 func Test_history_no_size_limit_stacktrace(t *testing.T) {
-	hk := newHistoryKeeper[string, int, string](fullHistorySize, true)
+	hk := newHistoryKeeper[string, int, string](fullHistorySize, true, cloneHandler)
 
 	intentionalErr := fmt.Errorf("intentional error")
 	if err := hk.Push("action1", 0, 1, intentionalErr, 3, "param1"); err != nil {
@@ -485,7 +485,7 @@ func Test_history_in_machine_apply_within_apply_case1(t *testing.T) {
 			Src:  []int{open},
 			Dst:  close,
 		},
-	}, WithFullHistory())
+	}, WithFullHistory[string]())
 
 	const emptyString = ""
 
@@ -648,7 +648,7 @@ func Test_history_in_machine_apply_within_apply_case2(t *testing.T) {
 			Src:  []int{open},
 			Dst:  close,
 		},
-	}, WithFullHistory())
+	}, WithFullHistory[string]())
 
 	const emptyString = ""
 
@@ -746,7 +746,7 @@ func Test_history_in_machine_apply_within_apply_case3(t *testing.T) {
 			Src:  []int{open},
 			Dst:  close,
 		},
-	}, WithFullHistory())
+	}, WithFullHistory[string]())
 
 	const emptyString = ""
 

@@ -597,7 +597,7 @@ func Test_loop_case_infinity_break(t *testing.T) {
 				return instance.Apply(ctx, "open", open) // here I introduced a loop intentionally
 			},
 		},
-	}, WithFullHistory())
+	}, WithFullHistory[any]())
 
 	require.ErrorIs(t, machine.Apply(context.TODO(), "open", open), ErrLoopFound)
 	require.Equal(t, close, machine.Current())
