@@ -1,21 +1,20 @@
-package kry_test
+package kry
 
 import (
 	"context"
 	"testing"
 
-	fsm "github.com/rianby64/kry"
 	"github.com/stretchr/testify/require"
 )
 
 type vizSample1 struct {
 }
 
-func (v *vizSample1) Open(ctx context.Context, instance fsm.InstanceFSM[string, int, any], param any) error {
+func (v *vizSample1) Open(ctx context.Context, instance InstanceFSM[string, int, any], param any) error {
 	return nil
 }
 
-func (v *vizSample1) Close(ctx context.Context, instance fsm.InstanceFSM[string, int, any], param any) error {
+func (v *vizSample1) Close(ctx context.Context, instance InstanceFSM[string, int, any], param any) error {
 	return nil
 }
 
@@ -32,9 +31,9 @@ func Test_visualization_case1(t *testing.T) {
 `
 
 	handlers := &vizSample1{}
-	anonymousFn := func(ctx context.Context, instance fsm.InstanceFSM[string, int, any], param any) error { return nil }
+	anonymousFn := func(ctx context.Context, instance InstanceFSM[string, int, any], param any) error { return nil }
 
-	transitions := []fsm.Transition[string, int, any]{
+	transitions := []Transition[string, int, any]{
 		{
 			Name:  "open",
 			Src:   []int{close},
@@ -49,7 +48,7 @@ func Test_visualization_case1(t *testing.T) {
 		},
 	}
 
-	actual := fsm.VisualizeStateLinks(transitions)
+	actual := VisualizeStateLinks(transitions)
 
 	require.Equal(t, expected, actual)
 }
@@ -83,7 +82,7 @@ subgraph cluster_1 {
 `
 
 	handlers := &vizSample1{}
-	transitions := []fsm.Transition[string, int, any]{
+	transitions := []Transition[string, int, any]{
 		{
 			Name:  "open",
 			Src:   []int{close},
@@ -98,6 +97,6 @@ subgraph cluster_1 {
 		},
 	}
 
-	actual := fsm.VisualizeActions(transitions)
+	actual := VisualizeActions(transitions)
 	require.Equal(t, expected, actual)
 }
