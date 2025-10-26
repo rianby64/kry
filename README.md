@@ -88,20 +88,21 @@ func main() {
 - Support for source transitions matching via function. (All 5xx, 4xx, etc.)
 - Visualization tools for FSMs
 - From transition - do a call to another transition, and do not allow looping
-- History of transitions
+- History of transitions with safe for concurrent use
 
 ## Wish list for future improvements
 
 - Add more examples and documentation
 - Implement more advanced features like state beforeEnter/exit actions. (should I?)
 - Support for destination transitions matching via function. (All 5xx, 4xx, etc.)
-- Make this lib safe for concurrent use
 
 ## Design considerations
 
 1. This library does not support `ForceState` as it is dangerous and breaks the FSM concept.
    So, if you encounter such a need, please rethink your design.
 2. Keep the API simple and easy to use.
+3. It's up to you to ensure that the FSM is used in a thread-safe manner if needed,
+   so lock it in the callbacks Enter* if you need to.
 
 ## License
 
