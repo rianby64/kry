@@ -24,6 +24,7 @@ const (
 
 type InstanceFSM[Action, State comparable, Param any] interface {
 	Current() State
+	Previous() State
 
 	Event(ctx context.Context, action Action, param ...Param) error
 	Apply(ctx context.Context, action Action, newState State, param ...Param) error
@@ -59,8 +60,9 @@ type matchState[Action, State comparable, Param any] struct {
 
 type FSM[Action, State comparable, Param any] struct {
 	id            uint64
-	currentState  State
 	currentAction Action
+	currentState  State
+	previousState State
 
 	states      map[State]struct{}
 	path        map[Action]map[State]map[State]callbacks[Action, State, Param] // action -> dst state -> src state -> callbacks
@@ -127,4 +129,8 @@ func (fsk *FSM[Action, State, Param]) String() string {
 
 func (fsk *FSM[Action, State, Param]) Current() State {
 	return fsk.currentState
+}
+
+func (fsk *FSM[Action, State, Param]) Previous() State {
+	return fsk.previousState
 }

@@ -105,6 +105,7 @@ func Test_execute_Enter_one_time_one_parameter(t *testing.T) {
 				Enter: func(ctx context.Context, instance InstanceFSM[string, int, Param], param Param) error {
 					require.Equal(t, "test", param.Value)
 					require.Equal(t, open, instance.Current())
+					require.Equal(t, close, instance.Previous())
 
 					calledEnter = true
 					return nil
@@ -567,6 +568,8 @@ func Test_loop_case_infinity_break(t *testing.T) {
 					t.FailNow()
 				}
 				calledOpen++
+				require.Equal(t, close, instance.Previous())
+
 				return instance.Apply(ctx, "roger", roger)
 			},
 		},
@@ -578,6 +581,8 @@ func Test_loop_case_infinity_break(t *testing.T) {
 					t.FailNow()
 				}
 				calledRoger++
+				require.Equal(t, open, instance.Previous())
+
 				return instance.Apply(ctx, "close", close)
 			},
 		},

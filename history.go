@@ -185,32 +185,28 @@ func (hk *historyKeeper[Action, State, Param]) Append(other *historyKeeper[Actio
 
 // the following methods are added to FSM because they relate to history management
 
-func (fsk *FSM[Action, State, Param]) pushToHistoryKeeper(
+func (fsk *FSM[Action, State, Param]) intermediateKeeper(
 	historyKeeper *historyKeeper[Action, State, Param],
 	action Action,
-	currentState, newState State,
+	from, to State,
 	err error,
 	param ...Param,
-) error {
+) (*historyKeeper[Action, State, Param], error) {
 	finalKeeper := newHistoryKeeper[Action, State, Param](
 		fsk.historyKeeper.maxLength,
 		fsk.stackTrace,
 	)
 	if errHistory := finalKeeper.
-		Push(
-			action, currentState, newState, err,
-			defaultSkipStackTrace, param...,
+		Push(action, from, to, err, defaultSkipStackTrace, param...,
 		); errHistory != nil {
-		return fmt.Errorf("failed to push history item: %w", errHistory)
+		return nil, fmt.Errorf("failed to push history item: %w", errHistory)
 	}
 
 	if historyKeeper.length > 0 {
 		finalKeeper.Append(historyKeeper)
 	}
 
-	*historyKeeper = *finalKeeper
-
-	return nil
+	return finalKeeper, nil
 }
 
 func (fsk *FSM[Action, State, Param]) History() []HistoryItem[Action, State, Param] {

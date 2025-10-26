@@ -572,6 +572,8 @@ func Test_history_in_machine_apply_within_apply_case2(t *testing.T) {
 			},
 			Dst: roger1,
 			Enter: func(ctx context.Context, fsm InstanceFSM[string, int, string], param string) error {
+				require.Equal(t, close, fsm.Previous())
+
 				return fsm.Apply(ctx, "roger", roger2, param)
 			},
 		},
@@ -583,6 +585,8 @@ func Test_history_in_machine_apply_within_apply_case2(t *testing.T) {
 			},
 			Dst: roger2,
 			Enter: func(ctx context.Context, fsm InstanceFSM[string, int, string], param string) error {
+				require.Equal(t, roger1, fsm.Previous())
+
 				return fsm.Apply(ctx, "roger", roger3, param)
 			},
 		},
@@ -595,6 +599,8 @@ func Test_history_in_machine_apply_within_apply_case2(t *testing.T) {
 			},
 			Dst: roger3,
 			Enter: func(ctx context.Context, fsm InstanceFSM[string, int, string], param string) error {
+				require.Equal(t, roger2, fsm.Previous())
+
 				return fsm.Apply(ctx, "roger", roger4, param)
 			},
 		},
@@ -608,6 +614,8 @@ func Test_history_in_machine_apply_within_apply_case2(t *testing.T) {
 			},
 			Dst: roger4,
 			Enter: func(ctx context.Context, fsm InstanceFSM[string, int, string], param string) error {
+				require.Equal(t, roger3, fsm.Previous())
+
 				return fsm.Apply(ctx, "roger", roger6, param)
 			},
 		},
@@ -630,6 +638,8 @@ func Test_history_in_machine_apply_within_apply_case2(t *testing.T) {
 			Src:  []int{roger5},
 			Dst:  open,
 			Enter: func(ctx context.Context, fsm InstanceFSM[string, int, string], param string) error {
+				require.Equal(t, roger5, fsm.Previous())
+
 				return nil
 			},
 		},
@@ -647,6 +657,7 @@ func Test_history_in_machine_apply_within_apply_case2(t *testing.T) {
 
 	require.ErrorIs(t, machine.Apply(context.TODO(), "roger", roger1, emptyString), ErrNotFound)
 	require.Equal(t, close, machine.Current())
+	require.Equal(t, open, machine.Previous())
 
 	require.NoError(t, machine.Apply(context.TODO(), "roger", roger5, emptyString))
 	require.Equal(t, roger5, machine.Current())

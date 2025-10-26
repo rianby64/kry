@@ -10,14 +10,18 @@ func (fsk *FSM[Action, State, Param]) apply(
 	ctx context.Context,
 	callbacks callbacks[Action, State, Param],
 	action Action,
-	currentState, newState State,
+	from, to State,
 	param ...Param,
 ) error {
 	currentHistoryKeeper := fsk.historyKeeper
+
 	currentAction := fsk.currentAction
+	currentState := fsk.currentState
+	previousState := fsk.previousState
 
 	fsk.currentAction = action
-	fsk.currentState = newState
+	fsk.currentState = to
+	fsk.previousState = currentState
 
 	historyKeeper := newHistoryKeeper[Action, State, Param](
 		fsk.historyKeeper.maxLength,
@@ -35,25 +39,30 @@ func (fsk *FSM[Action, State, Param]) apply(
 	); err != nil {
 		fsk.currentAction = currentAction
 		fsk.currentState = currentState
+		fsk.previousState = previousState
 
-		if errHistory := fsk.pushToHistoryKeeper(
+		if intermediateKeeper, errHistory := fsk.intermediateKeeper(
 			historyKeeper,
-			action, currentState, newState,
+			action, from, to,
 			errors.Unwrap(err), param...,
 		); errHistory != nil {
 			err = fmt.Errorf("%w: %w", err, errHistory)
+		} else {
+			historyKeeper = intermediateKeeper
 		}
 
 		return fmt.Errorf("failed to apply (%v) from '%v' to '%v': %w",
-			action, currentState, newState, err)
+			action, from, to, err)
 	}
 
-	if errHistory := fsk.pushToHistoryKeeper(
+	if intermediateKeeper, errHistory := fsk.intermediateKeeper(
 		historyKeeper,
-		action, currentState, newState,
+		action, from, to,
 		nil, param...,
 	); errHistory != nil {
 		return fmt.Errorf("failed to keep forced history: %w", errHistory)
+	} else {
+		historyKeeper = intermediateKeeper
 	}
 
 	return nil
