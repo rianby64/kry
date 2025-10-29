@@ -840,3 +840,85 @@ func Test_set_transitions_match_fn_error(t *testing.T) {
 	require.ErrorIs(t, machine.Apply(ctx, "roger-trap", roger), expectedError)
 	require.Equal(t, open3, machine.Current())
 }
+
+func Test_ignore_transition_ok(t *testing.T) {
+	const (
+		close int = iota
+		open
+	)
+
+	machine, err := New(close, []Transition[string, int, any]{
+		{
+			Name: "open", Src: []int{close}, Dst: open,
+			EnterNoParams: func(ctx context.Context, instance InstanceFSM[string, int, any]) error {
+				instance.IgnoreCurrentTransition()
+				return nil
+			},
+		},
+		{
+			Name: "close", Src: []int{open}, Dst: close,
+		},
+	})
+
+	require.NotNil(t, machine)
+	require.NoError(t, err)
+
+	require.NoError(t, machine.Event(context.TODO(), "open"))
+	require.Equal(t, close, machine.Current())
+}
+
+func Test_ignore_transition_outside_skip(t *testing.T) {
+	const (
+		close int = iota
+		open
+	)
+
+	machine, err := New(close, []Transition[string, int, any]{
+		{
+			Name: "open", Src: []int{close}, Dst: open,
+		},
+		{
+			Name: "close", Src: []int{open}, Dst: close,
+		},
+	})
+
+	require.NotNil(t, machine)
+	require.NoError(t, err)
+
+	machine.IgnoreCurrentTransition()
+
+	require.NoError(t, machine.Event(context.TODO(), "open"))
+	require.Equal(t, open, machine.Current())
+
+	require.NoError(t, machine.Event(context.TODO(), "close"))
+	require.Equal(t, close, machine.Current())
+}
+
+func Test_force_state(t *testing.T) {
+	const (
+		close int = iota
+		roger
+		open
+	)
+
+	machine, err := New(close, []Transition[string, int, any]{
+		{
+			Name: "open", Src: []int{close}, Dst: open,
+			EnterNoParams: func(ctx context.Context, instance InstanceFSM[string, int, any]) error {
+				return instance.ForceState(roger)
+			},
+		},
+		{
+			Name: "close", Src: []int{open, roger}, Dst: close,
+		},
+	})
+
+	require.NotNil(t, machine)
+	require.NoError(t, err)
+
+	require.NoError(t, machine.Event(context.TODO(), "open"))
+	require.Equal(t, roger, machine.Current())
+
+	require.NoError(t, machine.Event(context.TODO(), "close"))
+	require.Equal(t, close, machine.Current())
+}

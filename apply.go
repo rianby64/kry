@@ -22,6 +22,7 @@ func (fsk *FSM[Action, State, Param]) apply(
 	fsk.currentAction = action
 	fsk.currentState = to
 	fsk.previousState = currentState
+	fsk.runningApply = true
 
 	historyKeeper := newHistoryKeeper[Action, State](
 		fsk.historyKeeper.maxLength,
@@ -33,14 +34,21 @@ func (fsk *FSM[Action, State, Param]) apply(
 	defer func() {
 		currentHistoryKeeper.Append(historyKeeper)
 		fsk.historyKeeper = currentHistoryKeeper
+		fsk.runningApply = false
+
+		if fsk.ignoreCurrent {
+			fsk.ignoreCurrent = false
+
+			fsk.currentAction = currentAction
+			fsk.currentState = currentState
+			fsk.previousState = previousState
+		}
 	}()
 
 	if err := fsk.applyTransitionByLengthParams(
 		ctx, callbacks, param...,
 	); err != nil {
-		fsk.currentAction = currentAction
-		fsk.currentState = currentState
-		fsk.previousState = previousState
+		fsk.ignoreCurrent = true
 
 		if intermediateKeeper, errHistory := fsk.intermediateKeeper(
 			historyKeeper,

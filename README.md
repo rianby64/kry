@@ -99,7 +99,7 @@ func main() {
 ## Design considerations
 
 1. This library does not support `ForceState` as it is dangerous and breaks the FSM concept.
-   So, if you encounter such a need, please rethink your design.
+   So, if you encounter such a need, please rethink your design. (Experimenting...)
 2. Keep the API simple and easy to use.
 3. It's up to you to ensure that the FSM is used in a thread-safe manner if needed,
    so lock it in the callbacks Enter* if you need to.

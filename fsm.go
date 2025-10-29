@@ -28,6 +28,9 @@ type InstanceFSM[Action, State comparable, Param any] interface {
 
 	Event(ctx context.Context, action Action, param ...Param) error
 	Apply(ctx context.Context, action Action, newState State, param ...Param) error
+
+	ForceState(newState State) error
+	IgnoreCurrentTransition()
 }
 
 type handlerNoParams[Action, State comparable, Param any] = func(ctx context.Context, instance InstanceFSM[Action, State, Param]) error
@@ -63,6 +66,8 @@ type FSM[Action, State comparable, Param any] struct {
 	currentAction Action
 	currentState  State
 	previousState State
+	ignoreCurrent bool
+	runningApply  bool
 
 	states      map[State]struct{}
 	path        map[Action]map[State]map[State]callbacks[Action, State, Param] // action -> dst state -> src state -> callbacks
@@ -141,4 +146,24 @@ func (fsk *FSM[Action, State, Param]) Current() State {
 
 func (fsk *FSM[Action, State, Param]) Previous() State {
 	return fsk.previousState
+}
+
+func (fsk *FSM[Action, State, Param]) ForceState(newState State) error {
+	_, ok := fsk.states[newState]
+	if !ok {
+		return fmt.Errorf("state %w: %v", ErrUnknown, newState)
+	}
+
+	fsk.previousState = fsk.currentState
+	fsk.currentState = newState
+
+	return nil
+}
+
+func (fsk *FSM[Action, State, Param]) IgnoreCurrentTransition() {
+	if !fsk.runningApply {
+		return
+	}
+
+	fsk.ignoreCurrent = true
 }
