@@ -215,7 +215,7 @@ func (fsk *FSM[Action, State, Param]) Apply(
 	if _, ok := fsk.path[action]; !ok {
 		err = ErrUnknown
 		if errHistory := fsk.historyKeeper.Push(
-			action, currentState, newState, err, 3, param...,
+			action, currentState, newState, err, defaultSkipStackTrace, param...,
 		); errHistory != nil {
 			err = fmt.Errorf("%w: failed to push history item: %w", err, errHistory)
 		}
@@ -237,7 +237,7 @@ func (fsk *FSM[Action, State, Param]) Apply(
 
 	err = ErrNotFound
 	if errHistory := fsk.historyKeeper.Push(
-		action, currentState, newState, err, 3, param...,
+		action, currentState, newState, err, defaultSkipStackTrace, param...,
 	); errHistory != nil {
 		err = fmt.Errorf("%w: failed to push history item: %w", err, errHistory)
 	}
