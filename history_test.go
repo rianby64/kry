@@ -159,7 +159,7 @@ func Test_history_no_size_limit(t *testing.T) {
 
 func Test_history_in_machine(t *testing.T) {
 	const (
-		close int = iota
+		close int = iota + 1
 		open
 	)
 
@@ -195,7 +195,7 @@ func Test_history_in_machine(t *testing.T) {
 
 func Test_history_in_machine_limited(t *testing.T) {
 	const (
-		close int = iota
+		close int = iota + 1
 		open
 	)
 
@@ -224,7 +224,7 @@ func Test_history_in_machine_limited(t *testing.T) {
 
 func Test_history_in_machine_with_error_from_enter(t *testing.T) {
 	const (
-		close int = iota
+		close int = iota + 1
 		roger
 		open
 	)
@@ -301,7 +301,7 @@ func Test_history_in_machine_with_error_from_enter(t *testing.T) {
 
 func Test_history_in_machine_with_incorrect_transition_error(t *testing.T) {
 	const (
-		close int = iota
+		close int = iota + 1
 		roger
 		open
 	)
@@ -402,7 +402,7 @@ func Test_history_no_size_limit_stacktrace(t *testing.T) {
 
 func Test_history_in_machine_apply_within_apply_case1(t *testing.T) {
 	const (
-		close int = iota
+		close int = iota + 1
 		roger1
 		roger2
 		roger3
@@ -554,7 +554,7 @@ func Test_history_in_machine_apply_within_apply_case1(t *testing.T) {
 
 func Test_history_in_machine_apply_within_apply_case2(t *testing.T) {
 	const (
-		close int = iota
+		close int = iota + 1
 		roger1
 		roger2
 		roger3
@@ -728,7 +728,7 @@ func Test_history_in_machine_apply_within_apply_case2(t *testing.T) {
 
 func Test_history_in_machine_apply_within_apply_case3(t *testing.T) {
 	const (
-		close int = iota
+		close int = iota + 1
 		open
 	)
 

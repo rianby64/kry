@@ -11,7 +11,7 @@ import (
 
 func Test_panic_case1(t *testing.T) {
 	const (
-		close int = iota
+		close int = iota + 1
 		open
 	)
 
