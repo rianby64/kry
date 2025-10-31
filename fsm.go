@@ -45,11 +45,11 @@ type callbacks[Action, State comparable, Param any] struct {
 // Transition contains the name of the action, the source states, the destination state,
 // and optional callbacks that are executed when the action is triggered.
 type Transition[Action, State comparable, Param any] struct {
-	Name Action
-	Src  []State
-	Dst  State
-
-	Match func(state State) bool // optional custom matching function for source states
+	Name  Action
+	Src   []State
+	SrcFn func(state State) bool // optional custom matching function for source states
+	Dst   State
+	DstFn func(state State) bool // optional custom matching function for destination states
 
 	EnterNoParams handlerNoParams[Action, State, Param]
 	Enter         handler[Action, State, Param]
@@ -57,7 +57,8 @@ type Transition[Action, State comparable, Param any] struct {
 }
 
 type matchState[Action, State comparable, Param any] struct {
-	Match     func(state State) bool // function to determine if transition is valid from the given state
+	MatchSrc  func(state State) bool // function to determine if transition is valid from the given state
+	MatchDst  func(state State) bool // function to determine if transition is valid to the given state
 	Callbacks callbacks[Action, State, Param]
 }
 
@@ -69,10 +70,11 @@ type FSM[Action, State comparable, Param any] struct {
 	ignoreCurrent bool
 	runningApply  bool
 
-	states      map[State]struct{}
-	path        map[Action]map[State]map[State]callbacks[Action, State, Param] // action -> dst state -> src state -> callbacks
-	pathByMatch map[Action]map[State][]matchState[Action, State, Param]        // action -> dst state -> list of match conditions for dst states
-	events      map[Action]Transition[Action, State, Param]                    // action -> transition
+	states         map[State]struct{}
+	path           map[Action]map[State]map[State]callbacks[Action, State, Param] // action -> dst state -> src state -> callbacks
+	pathByMatchSrc map[Action]map[State][]matchState[Action, State, Param]        // action -> dst state -> list of match conditions for dst states
+	pathByMatchDst map[Action]map[State][]matchState[Action, State, Param]        // action -> src state -> list of match conditions for src states
+	events         map[Action]Transition[Action, State, Param]                    // action -> transition
 
 	canTriggerEvents bool
 	graphic          string
@@ -101,7 +103,7 @@ func New[Action, State comparable, Param any](
 		finalOptions.cloneHandler = cloneHandler[Param]
 	}
 
-	path, pathByMatch, states, events,
+	path, pathByMatchSrc, pathByMatchDst, states, events,
 		canTriggerEvents, err := constructFromTransitions(initialState, transitions)
 	if err != nil {
 		return nil, err
@@ -116,11 +118,12 @@ func New[Action, State comparable, Param any](
 	graphic := fmt.Sprintf("digraph fsm_%d {\n%s\n}", idMachine, VisualizeActions(transitions))
 
 	return &FSM[Action, State, Param]{
-		id:           idMachine,
-		currentState: initialState,
-		path:         path,
-		pathByMatch:  pathByMatch,
-		states:       states,
+		id:             idMachine,
+		currentState:   initialState,
+		path:           path,
+		pathByMatchSrc: pathByMatchSrc,
+		pathByMatchDst: pathByMatchDst,
+		states:         states,
 
 		events:           events,
 		canTriggerEvents: canTriggerEvents,

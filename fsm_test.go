@@ -25,7 +25,7 @@ func Test_set_initialState_int_ok(t *testing.T) {
 
 func Test_undefined_src_state(t *testing.T) {
 	const (
-		close int = iota
+		close int = iota + 1
 		open
 	)
 
@@ -40,7 +40,7 @@ func Test_undefined_src_state(t *testing.T) {
 
 func Test_set_transitions_string_int_ok(t *testing.T) {
 	const (
-		close int = iota
+		close int = iota + 1
 		open
 	)
 
@@ -55,7 +55,7 @@ func Test_set_transitions_string_int_ok(t *testing.T) {
 
 func Test_incorrect_event(t *testing.T) {
 	const (
-		close int = iota
+		close int = iota + 1
 		open
 	)
 
@@ -70,7 +70,7 @@ func Test_incorrect_event(t *testing.T) {
 
 func Test_incorrect_state(t *testing.T) {
 	const (
-		close int = iota
+		close int = iota + 1
 		open
 		initial
 	)
@@ -86,7 +86,7 @@ func Test_incorrect_state(t *testing.T) {
 
 func Test_execute_Enter_one_time_one_parameter(t *testing.T) {
 	const (
-		close int = iota
+		close int = iota + 1
 		open
 	)
 
@@ -130,7 +130,7 @@ func Test_execute_Enter_one_time_one_parameter(t *testing.T) {
 
 func Test_execute_event_case2(t *testing.T) {
 	const (
-		close int = iota
+		close int = iota + 1
 		open
 	)
 
@@ -174,7 +174,7 @@ func Test_execute_event_case2(t *testing.T) {
 
 func Test_failed_enter_OK(t *testing.T) {
 	const (
-		close int = iota
+		close int = iota + 1
 		open
 	)
 
@@ -219,7 +219,7 @@ func Test_failed_enter_OK(t *testing.T) {
 
 func Test_execute_different_variadics(t *testing.T) {
 	const (
-		close int = iota
+		close int = iota + 1
 		open
 	)
 
@@ -305,7 +305,7 @@ func Test_execute_different_variadics(t *testing.T) {
 
 func Test_set_state_undefined_case1(t *testing.T) {
 	const (
-		close int = iota
+		close int = iota + 1
 		open
 	)
 
@@ -314,14 +314,14 @@ func Test_set_state_undefined_case1(t *testing.T) {
 		{Name: "close", Src: []int{open}, Dst: close},
 	})
 
-	err := machine.Apply(context.TODO(), "open", 1)
+	err := machine.Apply(context.TODO(), "open", open)
 	require.NoError(t, err)
 	require.Equal(t, open, machine.Current())
 }
 
 func Test_set_state_undefined_case2(t *testing.T) {
 	const (
-		close int = iota
+		close int = iota + 1
 		open
 	)
 
@@ -330,13 +330,13 @@ func Test_set_state_undefined_case2(t *testing.T) {
 		{Name: "close", Src: []int{open}, Dst: close},
 	})
 
-	require.NoError(t, machine.Apply(context.TODO(), "open", 1, 2))
+	require.NoError(t, machine.Apply(context.TODO(), "open", open, 20))
 	require.Equal(t, open, machine.Current())
 }
 
 func Test_set_state_undefined_case3(t *testing.T) {
 	const (
-		close int = iota
+		close int = iota + 1
 		open
 	)
 
@@ -359,7 +359,7 @@ func Test_set_state_undefined_case3(t *testing.T) {
 
 func Test_set_transitions_retrigger_ok(t *testing.T) {
 	const (
-		close int = iota
+		close int = iota + 1
 		roger
 		open
 	)
@@ -415,7 +415,7 @@ func Test_set_transitions_retrigger_ok(t *testing.T) {
 
 func Test_set_repeated_transitions_panic(t *testing.T) {
 	const (
-		close int = iota
+		close int = iota + 1
 		roger
 		open
 	)
@@ -438,7 +438,7 @@ func Test_set_repeated_transitions_panic(t *testing.T) {
 
 func Test_set_event_ok(t *testing.T) {
 	const (
-		close int = iota
+		close int = iota + 1
 		open
 	)
 
@@ -463,7 +463,7 @@ func Test_set_event_ok(t *testing.T) {
 
 func Test_transite_incorrect_event_ok(t *testing.T) {
 	const (
-		close int = iota
+		close int = iota + 1
 		open
 	)
 
@@ -496,7 +496,7 @@ func Test_transite_incorrect_event_ok(t *testing.T) {
 
 func Test_loop_case_1(t *testing.T) {
 	const (
-		close int = iota
+		close int = iota + 1
 		roger
 		open
 	)
@@ -550,7 +550,7 @@ func Test_loop_case_1(t *testing.T) {
 
 func Test_loop_case_infinity_break(t *testing.T) {
 	const (
-		close int = iota
+		close int = iota + 1
 		roger
 		open
 	)
@@ -648,7 +648,7 @@ func Test_loop_case_infinity_break(t *testing.T) {
 
 func Test_loop_case_infinity_break_two_machines(t *testing.T) {
 	const (
-		close int = iota
+		close int = iota + 1
 		open
 	)
 
@@ -697,7 +697,7 @@ func Test_loop_case_infinity_break_two_machines(t *testing.T) {
 
 func Test_set_transitions_match_fn(t *testing.T) {
 	const (
-		close int = iota
+		close int = iota + 1
 		open1
 		open2
 		open3
@@ -740,7 +740,7 @@ func Test_set_transitions_match_fn(t *testing.T) {
 		},
 		{
 			Name: "roger-trap",
-			Match: func(state int) bool {
+			SrcFn: func(state int) bool {
 				return open1 <= state && state <= open3
 			},
 			Dst: roger3,
@@ -753,7 +753,7 @@ func Test_set_transitions_match_fn(t *testing.T) {
 
 		{
 			Name: "close",
-			Match: func(state int) bool {
+			SrcFn: func(state int) bool {
 				return roger1 <= state && state <= roger3
 			},
 			Dst: close,
@@ -788,7 +788,7 @@ func Test_set_transitions_match_fn(t *testing.T) {
 
 func Test_set_transitions_match_fn_error(t *testing.T) {
 	const (
-		close int = iota
+		close int = iota + 1
 		open1
 		open2
 		open3
@@ -816,7 +816,7 @@ func Test_set_transitions_match_fn_error(t *testing.T) {
 
 		{
 			Name: "roger-trap",
-			Match: func(state int) bool {
+			SrcFn: func(state int) bool {
 				return open1 <= state && state <= open3
 			},
 			Dst: roger,
@@ -843,7 +843,7 @@ func Test_set_transitions_match_fn_error(t *testing.T) {
 
 func Test_ignore_transition_ok(t *testing.T) {
 	const (
-		close int = iota
+		close int = iota + 1
 		open
 	)
 
@@ -869,7 +869,7 @@ func Test_ignore_transition_ok(t *testing.T) {
 
 func Test_ignore_transition_outside_skip(t *testing.T) {
 	const (
-		close int = iota
+		close int = iota + 1
 		open
 	)
 
@@ -896,7 +896,7 @@ func Test_ignore_transition_outside_skip(t *testing.T) {
 
 func Test_force_state(t *testing.T) {
 	const (
-		close int = iota
+		close int = iota + 1
 		roger
 		open
 	)
@@ -920,5 +920,70 @@ func Test_force_state(t *testing.T) {
 	require.Equal(t, roger, machine.Current())
 
 	require.NoError(t, machine.Event(context.TODO(), "close"))
+	require.Equal(t, close, machine.Current())
+}
+
+func Test_avoid_zero_dst(t *testing.T) {
+	const (
+		close int = iota
+		open
+	)
+
+	machine, err := New(close, []Transition[string, int, any]{
+		{Name: "open", Src: []int{close}, Dst: open},
+		{Name: "close", Src: []int{open}, Dst: close},
+	})
+
+	require.Nil(t, machine)
+	require.ErrorIs(t, err, ErrNotAllowed)
+}
+
+func Test_transit_match_dst_case1(t *testing.T) {
+	const (
+		close int = iota + 1
+		roger1
+		roger2
+		roger3
+		roger4
+		open
+	)
+
+	machine, _ := New(close, []Transition[string, int, any]{
+		{
+			Name: "open",
+			Src:  []int{close},
+			Dst:  open,
+		},
+		{
+			Name: "roger-trap",
+			Src:  []int{open},
+			DstFn: func(state int) bool {
+				return roger1 <= state && state <= roger4
+			}},
+		{
+			Name: "close",
+			SrcFn: func(state int) bool {
+				return roger1 <= state && state <= roger4
+			},
+			Dst: close,
+		},
+	})
+
+	require.NoError(t, machine.Apply(context.TODO(), "open", open))
+	require.Equal(t, open, machine.Current())
+
+	require.NoError(t, machine.Apply(context.TODO(), "roger-trap", roger3))
+	require.Equal(t, roger3, machine.Current())
+
+	require.NoError(t, machine.Apply(context.TODO(), "close", close))
+	require.Equal(t, close, machine.Current())
+
+	require.NoError(t, machine.Apply(context.TODO(), "open", open))
+	require.Equal(t, open, machine.Current())
+
+	require.NoError(t, machine.Apply(context.TODO(), "roger-trap", roger4))
+	require.Equal(t, roger4, machine.Current())
+
+	require.NoError(t, machine.Apply(context.TODO(), "close", close))
 	require.Equal(t, close, machine.Current())
 }
