@@ -72,8 +72,8 @@ type FSM[Action, State comparable, Param any] struct {
 
 	states         map[State]struct{}
 	path           map[Action]map[State]map[State]callbacks[Action, State, Param] // action -> dst state -> src state -> callbacks
-	pathByMatchSrc map[Action]map[State][]matchState[Action, State, Param]        // action -> dst state -> list of match conditions for dst states
-	pathByMatchDst map[Action]map[State][]matchState[Action, State, Param]        // action -> src state -> list of match conditions for src states
+	pathByMatchSrc map[Action]map[State][]matchState[Action, State, Param]        // action -> dst state -> list of match conditions for src states
+	pathByMatchDst map[Action]map[State][]matchState[Action, State, Param]        // action -> src state -> list of match conditions for dst states
 	pathMatch      map[Action][]matchState[Action, State, Param]                  // action -> list of match conditions for both src and dst states
 	events         map[Action]Transition[Action, State, Param]                    // action -> transition
 
