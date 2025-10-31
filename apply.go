@@ -105,7 +105,7 @@ const (
 	matchDst
 )
 
-func (fsk *FSM[Action, State, Param]) applyByMatch(ctx context.Context, matchType matchType, action Action, newState State, param ...Param) (bool, error) {
+func (fsk *FSM[Action, State, Param]) applyByMatchSrcDst(ctx context.Context, matchType matchType, action Action, newState State, param ...Param) (bool, error) {
 	currentState := fsk.currentState
 	var (
 		foundActionByMatch map[State][]matchState[Action, State, Param]
@@ -156,6 +156,24 @@ func (fsk *FSM[Action, State, Param]) applyByMatch(ctx context.Context, matchTyp
 
 				return true, nil
 			}
+		}
+	}
+
+	return false, nil
+}
+
+func (fsk *FSM[Action, State, Param]) applyByMatch(ctx context.Context, action Action, newState State, param ...Param) (bool, error) {
+	foundAction := fsk.pathMatch[action]
+	currentState := fsk.currentState
+
+	for _, matchState := range foundAction {
+		if matchState.MatchSrc(currentState) && matchState.MatchDst(newState) {
+			callbacks := matchState.Callbacks
+			if err := fsk.apply(ctx, callbacks, action, currentState, newState, param...); err != nil {
+				return false, err
+			}
+
+			return true, nil
 		}
 	}
 
@@ -268,13 +286,19 @@ func (fsk *FSM[Action, State, Param]) Apply(
 		return nil
 	}
 
-	if applied, err := fsk.applyByMatch(ctxWithLoop, matchSrc, action, newState, param...); err != nil {
+	if applied, err := fsk.applyByMatchSrcDst(ctxWithLoop, matchSrc, action, newState, param...); err != nil {
 		return err
 	} else if applied {
 		return nil
 	}
 
-	if applied, err := fsk.applyByMatch(ctxWithLoop, matchDst, action, newState, param...); err != nil {
+	if applied, err := fsk.applyByMatchSrcDst(ctxWithLoop, matchDst, action, newState, param...); err != nil {
+		return err
+	} else if applied {
+		return nil
+	}
+
+	if applied, err := fsk.applyByMatch(ctxWithLoop, action, newState, param...); err != nil {
 		return err
 	} else if applied {
 		return nil

@@ -13,6 +13,7 @@ func constructFromTransitions[Action, State comparable, Param any](
 	map[Action]map[State]map[State]callbacks[Action, State, Param],
 	map[Action]map[State][]matchState[Action, State, Param],
 	map[Action]map[State][]matchState[Action, State, Param],
+	map[Action][]matchState[Action, State, Param],
 	map[State]struct{},
 	map[Action]Transition[Action, State, Param],
 	bool,
@@ -21,6 +22,7 @@ func constructFromTransitions[Action, State comparable, Param any](
 	path := make(map[Action]map[State]map[State]callbacks[Action, State, Param])
 	pathByMatchSrc := make(map[Action]map[State][]matchState[Action, State, Param])
 	pathByMatchDst := make(map[Action]map[State][]matchState[Action, State, Param])
+	pathMatch := make(map[Action][]matchState[Action, State, Param])
 	states := map[State]struct{}{initialState: {}}
 	canTriggerEvents := true
 	events := make(map[Action]Transition[Action, State, Param])
@@ -37,14 +39,32 @@ func constructFromTransitions[Action, State comparable, Param any](
 			canTriggerEvents = false
 		}
 
+		if len(transition.Src) == 0 && transition.SrcFn != nil && transition.DstFn != nil && transition.Dst == zeroState {
+			if _, ok := pathMatch[action]; !ok {
+				pathMatch[action] = make([]matchState[Action, State, Param], 0)
+			}
+
+			pathMatch[action] = append(pathMatch[action], matchState[Action, State, Param]{
+				MatchSrc: transition.SrcFn,
+				MatchDst: transition.DstFn,
+				Callbacks: callbacks[Action, State, Param]{
+					EnterVariadic: transition.EnterVariadic,
+					Enter:         transition.Enter,
+					EnterNoParams: transition.EnterNoParams,
+				},
+			})
+
+			continue
+		}
+
 		if len(transition.Src) == 0 && transition.SrcFn == nil {
-			return nil, nil, nil, nil, nil, false,
+			return nil, nil, nil, nil, nil, nil, false,
 				fmt.Errorf("for action %v(index=%d) neither src states nor matching function found: %w", action, index, ErrNotFound)
 		}
 
 		dst := transition.Dst
 		if dst == zeroState && transition.DstFn == nil {
-			return nil, nil, nil, nil, nil, false,
+			return nil, nil, nil, nil, nil, nil, false,
 				fmt.Errorf("for action %v(index=%d) destination state is zero value: %w", action, index, ErrNotAllowed)
 		}
 
@@ -99,7 +119,7 @@ func constructFromTransitions[Action, State comparable, Param any](
 
 		for _, src := range transition.Src {
 			if _, ok := path[action][dst][src]; ok {
-				return nil, nil, nil, nil, nil, false,
+				return nil, nil, nil, nil, nil, nil, false,
 					fmt.Errorf(
 						"action %v from state %v to state %v: %w",
 						action, src, dst, ErrRepeated,
@@ -121,6 +141,7 @@ func constructFromTransitions[Action, State comparable, Param any](
 	return path,
 		pathByMatchSrc,
 		pathByMatchDst,
+		pathMatch,
 		states,
 		events,
 		canTriggerEvents,

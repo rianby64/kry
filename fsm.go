@@ -74,6 +74,7 @@ type FSM[Action, State comparable, Param any] struct {
 	path           map[Action]map[State]map[State]callbacks[Action, State, Param] // action -> dst state -> src state -> callbacks
 	pathByMatchSrc map[Action]map[State][]matchState[Action, State, Param]        // action -> dst state -> list of match conditions for dst states
 	pathByMatchDst map[Action]map[State][]matchState[Action, State, Param]        // action -> src state -> list of match conditions for src states
+	pathMatch      map[Action][]matchState[Action, State, Param]                  // action -> list of match conditions for both src and dst states
 	events         map[Action]Transition[Action, State, Param]                    // action -> transition
 
 	canTriggerEvents bool
@@ -103,7 +104,7 @@ func New[Action, State comparable, Param any](
 		finalOptions.cloneHandler = cloneHandler[Param]
 	}
 
-	path, pathByMatchSrc, pathByMatchDst, states, events,
+	path, pathByMatchSrc, pathByMatchDst, pathMatch, states, events,
 		canTriggerEvents, err := constructFromTransitions(initialState, transitions)
 	if err != nil {
 		return nil, err
@@ -123,6 +124,7 @@ func New[Action, State comparable, Param any](
 		path:           path,
 		pathByMatchSrc: pathByMatchSrc,
 		pathByMatchDst: pathByMatchDst,
+		pathMatch:      pathMatch,
 		states:         states,
 
 		events:           events,

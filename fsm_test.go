@@ -959,7 +959,8 @@ func Test_transit_match_dst_case1(t *testing.T) {
 			Src:  []int{open},
 			DstFn: func(state int) bool {
 				return roger1 <= state && state <= roger4
-			}},
+			},
+		},
 		{
 			Name: "close",
 			SrcFn: func(state int) bool {
@@ -974,6 +975,69 @@ func Test_transit_match_dst_case1(t *testing.T) {
 
 	require.NoError(t, machine.Apply(context.TODO(), "roger-trap", roger3))
 	require.Equal(t, roger3, machine.Current())
+
+	require.NoError(t, machine.Apply(context.TODO(), "close", close))
+	require.Equal(t, close, machine.Current())
+
+	require.NoError(t, machine.Apply(context.TODO(), "open", open))
+	require.Equal(t, open, machine.Current())
+
+	require.NoError(t, machine.Apply(context.TODO(), "roger-trap", roger4))
+	require.Equal(t, roger4, machine.Current())
+
+	require.NoError(t, machine.Apply(context.TODO(), "close", close))
+	require.Equal(t, close, machine.Current())
+}
+
+func Test_transit_match_dst_case2(t *testing.T) {
+	const (
+		close int = iota + 1
+		roger1
+		roger2
+		roger3
+		roger4
+		open
+	)
+
+	machine, _ := New(close, []Transition[string, int, any]{
+		{
+			Name: "open",
+			Src:  []int{close},
+			Dst:  open,
+		},
+		{
+			Name: "roger-trap",
+			Src:  []int{open},
+			DstFn: func(state int) bool {
+				return roger1 <= state && state <= roger4
+			},
+		},
+		{
+			Name: "roger-trap",
+			SrcFn: func(state int) bool {
+				return roger1 <= state && state <= roger4
+			},
+			DstFn: func(state int) bool {
+				return roger1 <= state && state <= roger4
+			},
+		},
+		{
+			Name: "close",
+			SrcFn: func(state int) bool {
+				return roger1 <= state && state <= roger4
+			},
+			Dst: close,
+		},
+	})
+
+	require.NoError(t, machine.Apply(context.TODO(), "open", open))
+	require.Equal(t, open, machine.Current())
+
+	require.NoError(t, machine.Apply(context.TODO(), "roger-trap", roger3))
+	require.Equal(t, roger3, machine.Current())
+
+	require.NoError(t, machine.Apply(context.TODO(), "roger-trap", roger1))
+	require.Equal(t, roger1, machine.Current())
 
 	require.NoError(t, machine.Apply(context.TODO(), "close", close))
 	require.Equal(t, close, machine.Current())
