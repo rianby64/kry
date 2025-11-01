@@ -86,6 +86,7 @@ func main() {
 
 - Simple API
 - Support for source transitions matching via function. (All 5xx, 4xx, etc.)
+- Support for destination transitions matching via function. (All 5xx, 4xx, etc.)
 - Visualization tools for FSMs
 - From transition - do a call to another transition, and do not allow looping
 - History of transitions with safe for concurrent use
@@ -94,7 +95,7 @@ func main() {
 
 - Add more examples and documentation
 - Implement more advanced features like state beforeEnter/exit actions. (should I?)
-- Support for destination transitions matching via function. (All 5xx, 4xx, etc.)
+- Improve the history with a better flow. At this moment it's basic.
 
 ## Design considerations
 

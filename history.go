@@ -55,6 +55,24 @@ func newHistoryKeeper[Action, State comparable, Param any](
 	}
 }
 
+func newHistoryItem[Action, State comparable, Param any](
+	action Action,
+	from State,
+	to State,
+	err error,
+	params ...Param,
+) *historyItem[Action, State, Param] {
+	return &historyItem[Action, State, Param]{
+		HistoryItem: &HistoryItem[Action, State, Param]{
+			Action: action,
+			From:   from,
+			To:     to,
+			Params: params,
+			Err:    err,
+		},
+	}
+}
+
 func cloneHandler[Param any](params ...Param) ([]Param, error) {
 	if len(params) == 0 {
 		return params, nil
@@ -77,15 +95,7 @@ func (hk *historyKeeper[Action, State, Param]) Push(action Action, from State, t
 		return fmt.Errorf("failed to clone params: %w", errClone)
 	}
 
-	item := &historyItem[Action, State, Param]{
-		HistoryItem: &HistoryItem[Action, State, Param]{
-			Action: action,
-			From:   from,
-			To:     to,
-			Params: cloneParams,
-			Err:    err,
-		},
-	}
+	item := newHistoryItem(action, from, to, err, cloneParams...)
 
 	if hk.stackTrace && err != nil {
 		item.Reason = err.Error()
