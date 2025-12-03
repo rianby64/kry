@@ -83,3 +83,62 @@ func WithCloneHandler[Param any](handler CloneHandler[Param]) func(o *Options[Pa
 		return o
 	}
 }
+
+// ExpectEnter accepts the handler that is expected to be called when applying the transition.
+//
+// During apply, in the history, the transition will reflect if the expected handler was called or not.
+func ExpectEnter[Action comparable, State comparable, Param any](
+	handler handler[Action, State, Param],
+) func(fsk *FSM[Action, State, Param]) *FSM[Action, State, Param] {
+	return func(fsk *FSM[Action, State, Param]) *FSM[Action, State, Param] {
+		if fsk.decoratorApply == nil {
+			fsk.decoratorApply = &decoratorApply[Action, State, Param]{}
+		}
+
+		fsk.decoratorApply.expectToCallEnter = append(fsk.decoratorApply.expectToCallEnter, handler)
+
+		return fsk
+	}
+}
+
+// ExpectEnterNoParams accepts the handler that is expected to be called when applying the transition.
+//
+// During apply, in the history, the transition will reflect if the expected handler was called or not.
+func ExpectEnterNoParams[Action comparable, State comparable, Param any](
+	handler handlerNoParams[Action, State, Param],
+) func(fsk *FSM[Action, State, Param]) *FSM[Action, State, Param] {
+	return func(fsk *FSM[Action, State, Param]) *FSM[Action, State, Param] {
+		if fsk.decoratorApply == nil {
+			fsk.decoratorApply = &decoratorApply[Action, State, Param]{}
+		}
+
+		fsk.decoratorApply.expectToCallEnterNoParams = append(fsk.decoratorApply.expectToCallEnterNoParams, handler)
+
+		return fsk
+	}
+}
+
+// ExpectEnterVariadic accepts the handler that is expected to be called when applying the transition.
+//
+// During apply, in the history, the transition will reflect if the expected handler was called or not.
+func ExpectEnterVariadic[Action comparable, State comparable, Param any](
+	handler handlerVariadic[Action, State, Param],
+) func(fsk *FSM[Action, State, Param]) *FSM[Action, State, Param] {
+	return func(fsk *FSM[Action, State, Param]) *FSM[Action, State, Param] {
+		if fsk.decoratorApply == nil {
+			fsk.decoratorApply = &decoratorApply[Action, State, Param]{}
+		}
+
+		fsk.decoratorApply.expectToCallEnterVariadic = append(fsk.decoratorApply.expectToCallEnterVariadic, handler)
+
+		return fsk
+	}
+}
+
+func (fsk *FSM[Action, State, Param]) With(opts ...func(fsk *FSM[Action, State, Param]) *FSM[Action, State, Param]) *FSM[Action, State, Param] {
+	for _, o := range opts {
+		fsk = o(fsk)
+	}
+
+	return fsk
+}

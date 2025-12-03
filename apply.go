@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
 )
 
 func (fsk *FSM[Action, State, Param]) apply(
@@ -13,6 +14,12 @@ func (fsk *FSM[Action, State, Param]) apply(
 	from, to State,
 	param ...Param,
 ) error {
+	var (
+		expectToCallEnterNoParams []handlerNoParams[Action, State, Param]
+		expectToCallEnter         []handler[Action, State, Param]
+		expectToCallEnterVariadic []handlerVariadic[Action, State, Param]
+	)
+
 	currentHistoryKeeper := fsk.historyKeeper
 
 	currentAction := fsk.currentAction
@@ -44,6 +51,50 @@ func (fsk *FSM[Action, State, Param]) apply(
 			fsk.previousState = previousState
 		}
 	}()
+
+	if fsk.decoratorApply != nil && len(fsk.decoratorApply.expectToCallEnter) > 0 {
+		expectToCallEnterNoParams = fsk.decoratorApply.expectToCallEnterNoParams
+		expectToCallEnter = fsk.decoratorApply.expectToCallEnter
+		expectToCallEnterVariadic = fsk.decoratorApply.expectToCallEnterVariadic
+
+		fsk.decoratorApply.expectToCallEnterNoParams = nil
+		fsk.decoratorApply.expectToCallEnter = nil
+		fsk.decoratorApply.expectToCallEnterVariadic = nil
+
+		expectedEnterNoParamsFound := false
+		pointerToEnterNoParams := reflect.ValueOf(callbacks.Enter).Pointer()
+		for _, expectedHandler := range expectToCallEnter {
+			if pointerToEnterNoParams == reflect.ValueOf(expectedHandler).Pointer() {
+				expectedEnterNoParamsFound = true
+
+				break
+			}
+		}
+
+		expectedEnterFound := false
+		pointerToEnter := reflect.ValueOf(callbacks.Enter).Pointer()
+		for _, expectedHandler := range expectToCallEnter {
+			if pointerToEnter == reflect.ValueOf(expectedHandler).Pointer() {
+				expectedEnterFound = true
+
+				break
+			}
+		}
+
+		expectedEnterFound := false
+		pointerToEnter := reflect.ValueOf(callbacks.Enter).Pointer()
+		for _, expectedHandler := range expectToCallEnter {
+			if pointerToEnter == reflect.ValueOf(expectedHandler).Pointer() {
+				expectedEnterFound = true
+
+				break
+			}
+		}
+
+		if !expectedEnterFound {
+			fmt.Println("unexpected Enter handler")
+		}
+	}
 
 	if err := fsk.applyTransitionByLengthParams(
 		ctx, callbacks, param...,
