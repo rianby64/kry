@@ -19,6 +19,7 @@ type HistoryItem[Action, State comparable, Param any] struct {
 	Err        error
 	StackTrace string
 	Reason     string
+	Ignored    bool
 }
 
 type historyItem[Action, State comparable, Param any] struct {
@@ -60,15 +61,17 @@ func newHistoryItem[Action, State comparable, Param any](
 	from State,
 	to State,
 	err error,
+	ignored bool,
 	params ...Param,
 ) *historyItem[Action, State, Param] {
 	return &historyItem[Action, State, Param]{
 		HistoryItem: &HistoryItem[Action, State, Param]{
-			Action: action,
-			From:   from,
-			To:     to,
-			Params: params,
-			Err:    err,
+			Action:  action,
+			From:    from,
+			To:      to,
+			Params:  params,
+			Err:     err,
+			Ignored: ignored,
 		},
 	}
 }
@@ -85,7 +88,7 @@ func cloneHandler[Param any](params ...Param) ([]Param, error) {
 	return cloned, nil
 }
 
-func (hk *historyKeeper[Action, State, Param]) Push(action Action, from State, to State, err error, skipStackTrace int, params ...Param) error {
+func (hk *historyKeeper[Action, State, Param]) Push(action Action, from State, to State, err error, skipStackTrace int, ignored bool, params ...Param) error {
 	if hk.maxLength == 0 {
 		return nil
 	}
@@ -95,7 +98,7 @@ func (hk *historyKeeper[Action, State, Param]) Push(action Action, from State, t
 		return fmt.Errorf("failed to clone params: %w", errClone)
 	}
 
-	item := newHistoryItem(action, from, to, err, cloneParams...)
+	item := newHistoryItem(action, from, to, err, ignored, cloneParams...)
 
 	if hk.stackTrace && err != nil {
 		item.Reason = err.Error()
@@ -199,6 +202,7 @@ func (fsk *FSM[Action, State, Param]) intermediateKeeper(
 	action Action,
 	from, to State,
 	err error,
+	ignored bool,
 	param ...Param,
 ) (*historyKeeper[Action, State, Param], error) {
 	finalKeeper := newHistoryKeeper[Action, State](
@@ -207,7 +211,7 @@ func (fsk *FSM[Action, State, Param]) intermediateKeeper(
 		fsk.cloneHandler,
 	)
 	if errHistory := finalKeeper.
-		Push(action, from, to, err, defaultSkipStackTrace, param...,
+		Push(action, from, to, err, defaultSkipStackTrace, ignored, param...,
 		); errHistory != nil {
 		return nil, fmt.Errorf("failed to push history item: %w", errHistory)
 	}

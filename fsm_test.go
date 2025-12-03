@@ -858,13 +858,16 @@ func Test_ignore_transition_ok(t *testing.T) {
 		{
 			Name: "close", Src: []int{open}, Dst: close,
 		},
-	})
+	}, WithFullHistory[any]())
 
 	require.NotNil(t, machine)
 	require.NoError(t, err)
 
 	require.NoError(t, machine.Event(context.TODO(), "open"))
 	require.Equal(t, close, machine.Current())
+
+	history := machine.History()
+	require.True(t, history[0].Ignored)
 }
 
 func Test_ignore_transition_outside_skip(t *testing.T) {

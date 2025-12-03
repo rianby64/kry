@@ -48,12 +48,13 @@ func (fsk *FSM[Action, State, Param]) apply(
 	if err := fsk.applyTransitionByLengthParams(
 		ctx, callbacks, param...,
 	); err != nil {
+		ignored := fsk.ignoreCurrent
 		fsk.ignoreCurrent = true
 
 		if intermediateKeeper, errHistory := fsk.intermediateKeeper(
 			historyKeeper,
 			action, from, to,
-			errors.Unwrap(err), param...,
+			errors.Unwrap(err), ignored, param...,
 		); errHistory != nil {
 			err = fmt.Errorf("%w: %w", err, errHistory)
 		} else {
@@ -67,7 +68,7 @@ func (fsk *FSM[Action, State, Param]) apply(
 	if intermediateKeeper, errHistory := fsk.intermediateKeeper(
 		historyKeeper,
 		action, from, to,
-		nil, param...,
+		nil, fsk.ignoreCurrent, param...,
 	); errHistory != nil {
 		return fmt.Errorf("failed to keep forced history: %w", errHistory)
 	} else {
@@ -249,7 +250,7 @@ func (fsk *FSM[Action, State, Param]) Apply(
 			err := fmt.Errorf("%v", errPanic)
 
 			if errHistory := fsk.historyKeeper.Push(
-				action, currentState, newState, err, defaultSkipStackTrace, param...,
+				action, currentState, newState, err, defaultSkipStackTrace, fsk.ignoreCurrent, param...,
 			); errHistory != nil {
 				err = fmt.Errorf("%w: failed to push history item: %w", err, errHistory)
 			}
@@ -272,7 +273,7 @@ func (fsk *FSM[Action, State, Param]) Apply(
 	if _, ok := fsk.path[action]; !ok {
 		err = ErrUnknown
 		if errHistory := fsk.historyKeeper.Push(
-			action, currentState, newState, err, defaultSkipStackTrace, param...,
+			action, currentState, newState, err, defaultSkipStackTrace, fsk.ignoreCurrent, param...,
 		); errHistory != nil {
 			err = fmt.Errorf("%w: failed to push history item: %w", err, errHistory)
 		}
@@ -306,7 +307,7 @@ func (fsk *FSM[Action, State, Param]) Apply(
 
 	err = ErrNotFound
 	if errHistory := fsk.historyKeeper.Push(
-		action, currentState, newState, err, defaultSkipStackTrace, param...,
+		action, currentState, newState, err, defaultSkipStackTrace, fsk.ignoreCurrent, param...,
 	); errHistory != nil {
 		err = fmt.Errorf("%w: failed to push history item: %w", err, errHistory)
 	}

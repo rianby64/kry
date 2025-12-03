@@ -11,7 +11,7 @@ import (
 func Test_history_size_limit_to_3(t *testing.T) {
 	hk := newHistoryKeeper[string, int, string](2, false, cloneHandler)
 
-	if err := hk.Push("action1", 0, 1, nil, 3, "param1"); err != nil {
+	if err := hk.Push("action1", 0, 1, nil, 3, false, "param1"); err != nil {
 		t.Fatalf("failed to push history item: %v", err)
 	}
 
@@ -26,7 +26,7 @@ func Test_history_size_limit_to_3(t *testing.T) {
 	}
 	require.Equal(t, expectedHistory1, hk.Items())
 
-	if err := hk.Push("action2", 1, 2, nil, 3, "param2"); err != nil {
+	if err := hk.Push("action2", 1, 2, nil, 3, false, "param2"); err != nil {
 		t.Fatalf("failed to push history item: %v", err)
 	}
 
@@ -52,7 +52,7 @@ func Test_history_size_limit_to_3(t *testing.T) {
 	}
 	require.Equal(t, expectedHistory2, hk.Items())
 
-	if err := hk.Push("action3", 2, 3, nil, 3, "param3"); err != nil {
+	if err := hk.Push("action3", 2, 3, nil, 3, false, "param3"); err != nil {
 		t.Fatalf("failed to push history item: %v", err)
 	}
 
@@ -82,7 +82,7 @@ func Test_history_size_limit_to_3(t *testing.T) {
 func Test_history_no_size_limit(t *testing.T) {
 	hk := newHistoryKeeper[string, int, string](fullHistorySize, false, cloneHandler)
 
-	if err := hk.Push("action1", 0, 1, nil, 3, "param1"); err != nil {
+	if err := hk.Push("action1", 0, 1, nil, 3, false, "param1"); err != nil {
 		t.Fatalf("failed to push history item: %v", err)
 	}
 
@@ -97,7 +97,7 @@ func Test_history_no_size_limit(t *testing.T) {
 	}
 	require.Equal(t, expectedHistory1, hk.Items())
 
-	if err := hk.Push("action2", 1, 2, nil, 3, "param2"); err != nil {
+	if err := hk.Push("action2", 1, 2, nil, 3, false, "param2"); err != nil {
 		t.Fatalf("failed to push history item: %v", err)
 	}
 
@@ -123,7 +123,7 @@ func Test_history_no_size_limit(t *testing.T) {
 	}
 	require.Equal(t, expectedHistory2, hk.Items())
 
-	if err := hk.Push("action3", 2, 3, nil, 3, "param3"); err != nil {
+	if err := hk.Push("action3", 2, 3, nil, 3, false, "param3"); err != nil {
 		t.Fatalf("failed to push history item: %v", err)
 	}
 
@@ -373,7 +373,7 @@ func Test_history_no_size_limit_stacktrace(t *testing.T) {
 	hk := newHistoryKeeper[string, int, string](fullHistorySize, true, cloneHandler)
 
 	intentionalErr := fmt.Errorf("intentional error")
-	if err := hk.Push("action1", 0, 1, intentionalErr, 3, "param1"); err != nil {
+	if err := hk.Push("action1", 0, 1, intentionalErr, 3, false, "param1"); err != nil {
 		t.Fatalf("failed to push history item: %v", err)
 	}
 
