@@ -24,6 +24,7 @@ func (fsk *FSM[Action, State, Param]) apply(
 	fsk.previousState = currentState
 	fsk.runningApply = true
 
+	expectFailed := fsk.checkCallbacksAgainstExpectHandlers(callbacks)
 	historyKeeper := newHistoryKeeper[Action, State](
 		fsk.historyKeeper.maxLength,
 		fsk.stackTrace,
@@ -54,7 +55,7 @@ func (fsk *FSM[Action, State, Param]) apply(
 		if intermediateKeeper, errHistory := fsk.intermediateKeeper(
 			historyKeeper,
 			action, from, to,
-			errors.Unwrap(err), ignored, param...,
+			errors.Unwrap(err), ignored, expectFailed, param...,
 		); errHistory != nil {
 			err = fmt.Errorf("%w: %w", err, errHistory)
 		} else {
@@ -68,7 +69,7 @@ func (fsk *FSM[Action, State, Param]) apply(
 	if intermediateKeeper, errHistory := fsk.intermediateKeeper(
 		historyKeeper,
 		action, from, to,
-		nil, fsk.ignoreCurrent, param...,
+		nil, fsk.ignoreCurrent, expectFailed, param...,
 	); errHistory != nil {
 		return fmt.Errorf("failed to keep forced history: %w", errHistory)
 	} else {
@@ -250,7 +251,9 @@ func (fsk *FSM[Action, State, Param]) Apply(
 			err := fmt.Errorf("%v", errPanic)
 
 			if errHistory := fsk.historyKeeper.Push(
-				action, currentState, newState, err, defaultSkipStackTrace, fsk.ignoreCurrent, param...,
+				action, currentState, newState,
+				err, defaultSkipStackTrace, fsk.ignoreCurrent, false,
+				param...,
 			); errHistory != nil {
 				err = fmt.Errorf("%w: failed to push history item: %w", err, errHistory)
 			}
@@ -273,7 +276,9 @@ func (fsk *FSM[Action, State, Param]) Apply(
 	if _, ok := fsk.path[action]; !ok {
 		err = ErrUnknown
 		if errHistory := fsk.historyKeeper.Push(
-			action, currentState, newState, err, defaultSkipStackTrace, fsk.ignoreCurrent, param...,
+			action, currentState, newState,
+			err, defaultSkipStackTrace, fsk.ignoreCurrent, false,
+			param...,
 		); errHistory != nil {
 			err = fmt.Errorf("%w: failed to push history item: %w", err, errHistory)
 		}
@@ -307,7 +312,9 @@ func (fsk *FSM[Action, State, Param]) Apply(
 
 	err = ErrNotFound
 	if errHistory := fsk.historyKeeper.Push(
-		action, currentState, newState, err, defaultSkipStackTrace, fsk.ignoreCurrent, param...,
+		action, currentState, newState,
+		err, defaultSkipStackTrace, fsk.ignoreCurrent, false,
+		param...,
 	); errHistory != nil {
 		err = fmt.Errorf("%w: failed to push history item: %w", err, errHistory)
 	}

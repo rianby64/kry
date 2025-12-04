@@ -41,7 +41,7 @@ func main() {
 		panic(err)
 	}
 
-	if err := fsk.Event(ctx, "open", CustomParam{Value: "example"}); err != nil {
+	if err := fsk.With().Event(ctx, "open", CustomParam{Value: "example"}); err != nil {
 		panic(err)
 	}
 

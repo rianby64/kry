@@ -26,6 +26,7 @@ type InstanceFSM[Action, State comparable, Param any] interface {
 	Current() State
 	Previous() State
 
+	With(opts ...func(fsk InstanceFSM[Action, State, Param]) InstanceFSM[Action, State, Param]) InstanceFSM[Action, State, Param]
 	Event(ctx context.Context, action Action, param ...Param) error
 	Apply(ctx context.Context, action Action, newState State, param ...Param) error
 
@@ -62,6 +63,12 @@ type matchState[Action, State comparable, Param any] struct {
 	Callbacks callbacks[Action, State, Param]
 }
 
+type decoratorApply[Action, State comparable, Param any] struct {
+	expectToCallEnterNoParams []handlerNoParams[Action, State, Param]
+	expectToCallEnter         []handler[Action, State, Param]
+	expectToCallEnterVariadic []handlerVariadic[Action, State, Param]
+}
+
 type FSM[Action, State comparable, Param any] struct {
 	id            uint64
 	currentAction Action
@@ -80,6 +87,7 @@ type FSM[Action, State comparable, Param any] struct {
 	canTriggerEvents bool
 	graphic          string
 	historyKeeper    *historyKeeper[Action, State, Param]
+	decoratorApply   *decoratorApply[Action, State, Param]
 	stackTrace       bool
 	panicHandler     PanicHandler
 	cloneHandler     CloneHandler[Param]

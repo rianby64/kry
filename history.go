@@ -12,14 +12,21 @@ const (
 )
 
 type HistoryItem[Action, State comparable, Param any] struct {
-	Action     Action
-	From       State
-	To         State
-	Params     []Param
+	// Below, these are the inputs
+
+	Action Action
+	From   State
+	To     State
+	Params []Param
+
+	// and, these are the outputs...
+
 	Err        error
 	StackTrace string
 	Reason     string
 	Ignored    bool
+
+	ExpectFailed bool
 }
 
 type historyItem[Action, State comparable, Param any] struct {
@@ -62,16 +69,18 @@ func newHistoryItem[Action, State comparable, Param any](
 	to State,
 	err error,
 	ignored bool,
+	expectFailed bool,
 	params ...Param,
 ) *historyItem[Action, State, Param] {
 	return &historyItem[Action, State, Param]{
 		HistoryItem: &HistoryItem[Action, State, Param]{
-			Action:  action,
-			From:    from,
-			To:      to,
-			Params:  params,
-			Err:     err,
-			Ignored: ignored,
+			Action:       action,
+			From:         from,
+			To:           to,
+			Err:          err,
+			Ignored:      ignored,
+			ExpectFailed: expectFailed,
+			Params:       params,
 		},
 	}
 }
@@ -88,7 +97,11 @@ func cloneHandler[Param any](params ...Param) ([]Param, error) {
 	return cloned, nil
 }
 
-func (hk *historyKeeper[Action, State, Param]) Push(action Action, from State, to State, err error, skipStackTrace int, ignored bool, params ...Param) error {
+func (hk *historyKeeper[Action, State, Param]) Push(
+	action Action, from State, to State,
+	err error, skipStackTrace int, ignored bool, expectFailed bool,
+	params ...Param,
+) error {
 	if hk.maxLength == 0 {
 		return nil
 	}
@@ -98,7 +111,7 @@ func (hk *historyKeeper[Action, State, Param]) Push(action Action, from State, t
 		return fmt.Errorf("failed to clone params: %w", errClone)
 	}
 
-	item := newHistoryItem(action, from, to, err, ignored, cloneParams...)
+	item := newHistoryItem(action, from, to, err, ignored, expectFailed, cloneParams...)
 
 	if hk.stackTrace && err != nil {
 		item.Reason = err.Error()
@@ -203,6 +216,7 @@ func (fsk *FSM[Action, State, Param]) intermediateKeeper(
 	from, to State,
 	err error,
 	ignored bool,
+	expectFailed bool,
 	param ...Param,
 ) (*historyKeeper[Action, State, Param], error) {
 	finalKeeper := newHistoryKeeper[Action, State](
@@ -210,9 +224,13 @@ func (fsk *FSM[Action, State, Param]) intermediateKeeper(
 		fsk.stackTrace,
 		fsk.cloneHandler,
 	)
-	if errHistory := finalKeeper.
-		Push(action, from, to, err, defaultSkipStackTrace, ignored, param...,
-		); errHistory != nil {
+
+	errHistory := finalKeeper.Push(
+		action, from, to,
+		err, defaultSkipStackTrace, ignored, expectFailed,
+		param...,
+	)
+	if errHistory != nil {
 		return nil, fmt.Errorf("failed to push history item: %w", errHistory)
 	}
 
