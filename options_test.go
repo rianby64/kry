@@ -36,15 +36,24 @@ func Test_option_expect_enter_handler_ok(t *testing.T) {
 			Dst:   close,
 			Enter: handlerClose,
 		},
-	})
+	}, WithFullHistory[any]())
+
+	expectedHistory := []HistoryItem[string, int, any]{
+		{
+			Action: "open",
+			From:   close,
+			To:     open,
+			ExpectFailed: expectFailed{
+				Enter: true,
+			},
+		},
+	}
 
 	errApply := machine.
-		With(ExpectEnter(handlerOpen)).
+		With(ExpectEnter(handlerClose)).
 		Apply(context.TODO(), "open", open)
-
-	// what if apply does not meet expectations? - oh yes! let's log it!
-	// what if so?
 
 	require.NoError(t, errApply)
 	require.Equal(t, open, machine.Current())
+	require.Equal(t, expectedHistory, machine.History())
 }

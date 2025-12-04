@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"reflect"
 )
 
 func (fsk *FSM[Action, State, Param]) apply(
@@ -14,12 +13,6 @@ func (fsk *FSM[Action, State, Param]) apply(
 	from, to State,
 	param ...Param,
 ) error {
-	var (
-		expectToCallEnterNoParams []handlerNoParams[Action, State, Param]
-		expectToCallEnter         []handler[Action, State, Param]
-		expectToCallEnterVariadic []handlerVariadic[Action, State, Param]
-	)
-
 	currentHistoryKeeper := fsk.historyKeeper
 
 	currentAction := fsk.currentAction
@@ -52,49 +45,7 @@ func (fsk *FSM[Action, State, Param]) apply(
 		}
 	}()
 
-	if fsk.decoratorApply != nil && len(fsk.decoratorApply.expectToCallEnter) > 0 {
-		expectToCallEnterNoParams = fsk.decoratorApply.expectToCallEnterNoParams
-		expectToCallEnter = fsk.decoratorApply.expectToCallEnter
-		expectToCallEnterVariadic = fsk.decoratorApply.expectToCallEnterVariadic
-
-		fsk.decoratorApply.expectToCallEnterNoParams = nil
-		fsk.decoratorApply.expectToCallEnter = nil
-		fsk.decoratorApply.expectToCallEnterVariadic = nil
-
-		expectedEnterNoParamsFound := false
-		pointerToEnterNoParams := reflect.ValueOf(callbacks.Enter).Pointer()
-		for _, expectedHandler := range expectToCallEnter {
-			if pointerToEnterNoParams == reflect.ValueOf(expectedHandler).Pointer() {
-				expectedEnterNoParamsFound = true
-
-				break
-			}
-		}
-
-		expectedEnterFound := false
-		pointerToEnter := reflect.ValueOf(callbacks.Enter).Pointer()
-		for _, expectedHandler := range expectToCallEnter {
-			if pointerToEnter == reflect.ValueOf(expectedHandler).Pointer() {
-				expectedEnterFound = true
-
-				break
-			}
-		}
-
-		expectedEnterFound := false
-		pointerToEnter := reflect.ValueOf(callbacks.Enter).Pointer()
-		for _, expectedHandler := range expectToCallEnter {
-			if pointerToEnter == reflect.ValueOf(expectedHandler).Pointer() {
-				expectedEnterFound = true
-
-				break
-			}
-		}
-
-		if !expectedEnterFound {
-			fmt.Println("unexpected Enter handler")
-		}
-	}
+	expectFailed := fsk.decorateWithExpectApply(callbacks)
 
 	if err := fsk.applyTransitionByLengthParams(
 		ctx, callbacks, param...,
@@ -105,7 +56,7 @@ func (fsk *FSM[Action, State, Param]) apply(
 		if intermediateKeeper, errHistory := fsk.intermediateKeeper(
 			historyKeeper,
 			action, from, to,
-			errors.Unwrap(err), ignored, param...,
+			errors.Unwrap(err), ignored, expectFailed, param...,
 		); errHistory != nil {
 			err = fmt.Errorf("%w: %w", err, errHistory)
 		} else {
@@ -119,7 +70,7 @@ func (fsk *FSM[Action, State, Param]) apply(
 	if intermediateKeeper, errHistory := fsk.intermediateKeeper(
 		historyKeeper,
 		action, from, to,
-		nil, fsk.ignoreCurrent, param...,
+		nil, fsk.ignoreCurrent, expectFailed, param...,
 	); errHistory != nil {
 		return fmt.Errorf("failed to keep forced history: %w", errHistory)
 	} else {
@@ -291,6 +242,7 @@ func (fsk *FSM[Action, State, Param]) Apply(
 	ctx context.Context, action Action, newState State, param ...Param,
 ) error {
 	currentState := fsk.currentState
+	emptyExpectFailed := expectFailed{}
 
 	defer func() {
 		if errPanic := recover(); errPanic != nil {
@@ -301,7 +253,9 @@ func (fsk *FSM[Action, State, Param]) Apply(
 			err := fmt.Errorf("%v", errPanic)
 
 			if errHistory := fsk.historyKeeper.Push(
-				action, currentState, newState, err, defaultSkipStackTrace, fsk.ignoreCurrent, param...,
+				action, currentState, newState,
+				err, defaultSkipStackTrace, fsk.ignoreCurrent, emptyExpectFailed,
+				param...,
 			); errHistory != nil {
 				err = fmt.Errorf("%w: failed to push history item: %w", err, errHistory)
 			}
@@ -324,7 +278,9 @@ func (fsk *FSM[Action, State, Param]) Apply(
 	if _, ok := fsk.path[action]; !ok {
 		err = ErrUnknown
 		if errHistory := fsk.historyKeeper.Push(
-			action, currentState, newState, err, defaultSkipStackTrace, fsk.ignoreCurrent, param...,
+			action, currentState, newState,
+			err, defaultSkipStackTrace, fsk.ignoreCurrent, emptyExpectFailed,
+			param...,
 		); errHistory != nil {
 			err = fmt.Errorf("%w: failed to push history item: %w", err, errHistory)
 		}
@@ -358,7 +314,9 @@ func (fsk *FSM[Action, State, Param]) Apply(
 
 	err = ErrNotFound
 	if errHistory := fsk.historyKeeper.Push(
-		action, currentState, newState, err, defaultSkipStackTrace, fsk.ignoreCurrent, param...,
+		action, currentState, newState,
+		err, defaultSkipStackTrace, fsk.ignoreCurrent, emptyExpectFailed,
+		param...,
 	); errHistory != nil {
 		err = fmt.Errorf("%w: failed to push history item: %w", err, errHistory)
 	}
