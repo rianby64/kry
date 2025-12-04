@@ -4,7 +4,7 @@ import (
 	"reflect"
 )
 
-func (fsk *FSM[Action, State, Param]) decorateWithExpectApply(callbacks callbacks[Action, State, Param]) bool {
+func (fsk *FSM[Action, State, Param]) checkCallbacksAgainstExpectHandlers(callbacks callbacks[Action, State, Param]) bool {
 	var (
 		expectToCallEnterNoParams []handlerNoParams[Action, State, Param]
 		expectToCallEnter         []handler[Action, State, Param]

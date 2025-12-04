@@ -24,6 +24,7 @@ func (fsk *FSM[Action, State, Param]) apply(
 	fsk.previousState = currentState
 	fsk.runningApply = true
 
+	expectFailed := fsk.checkCallbacksAgainstExpectHandlers(callbacks)
 	historyKeeper := newHistoryKeeper[Action, State](
 		fsk.historyKeeper.maxLength,
 		fsk.stackTrace,
@@ -44,8 +45,6 @@ func (fsk *FSM[Action, State, Param]) apply(
 			fsk.previousState = previousState
 		}
 	}()
-
-	expectFailed := fsk.decorateWithExpectApply(callbacks)
 
 	if err := fsk.applyTransitionByLengthParams(
 		ctx, callbacks, param...,
