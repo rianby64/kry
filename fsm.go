@@ -26,6 +26,7 @@ type InstanceFSM[Action, State comparable, Param any] interface {
 	Current() State
 	Previous() State
 
+	With(opts ...func(fsk InstanceFSM[Action, State, Param]) InstanceFSM[Action, State, Param]) InstanceFSM[Action, State, Param]
 	Event(ctx context.Context, action Action, param ...Param) error
 	Apply(ctx context.Context, action Action, newState State, param ...Param) error
 

@@ -5,16 +5,10 @@ import (
 )
 
 func (fsk *FSM[Action, State, Param]) checkCallbacksAgainstExpectHandlers(callbacks callbacks[Action, State, Param]) bool {
-	var (
-		expectToCallEnterNoParams []handlerNoParams[Action, State, Param]
-		expectToCallEnter         []handler[Action, State, Param]
-		expectToCallEnterVariadic []handlerVariadic[Action, State, Param]
-	)
-
 	if fsk.decoratorApply != nil {
 		if len(fsk.decoratorApply.expectToCallEnter) > 0 {
 			expectedEnterFound := false
-			expectToCallEnter = fsk.decoratorApply.expectToCallEnter
+			expectToCallEnter := fsk.decoratorApply.expectToCallEnter
 			fsk.decoratorApply.expectToCallEnter = nil
 
 			pointerToEnter := reflect.ValueOf(callbacks.Enter).Pointer()
@@ -31,7 +25,7 @@ func (fsk *FSM[Action, State, Param]) checkCallbacksAgainstExpectHandlers(callba
 
 		if len(fsk.decoratorApply.expectToCallEnterNoParams) > 0 {
 			expectedEnterNoParamsFound := false
-			expectToCallEnterNoParams = fsk.decoratorApply.expectToCallEnterNoParams
+			expectToCallEnterNoParams := fsk.decoratorApply.expectToCallEnterNoParams
 			fsk.decoratorApply.expectToCallEnterNoParams = nil
 
 			pointerToEnterNoParams := reflect.ValueOf(callbacks.EnterNoParams).Pointer()
@@ -48,7 +42,7 @@ func (fsk *FSM[Action, State, Param]) checkCallbacksAgainstExpectHandlers(callba
 
 		if len(fsk.decoratorApply.expectToCallEnterVariadic) > 0 {
 			expectedEnterVariadicFound := false
-			expectToCallEnterVariadic = fsk.decoratorApply.expectToCallEnterVariadic
+			expectToCallEnterVariadic := fsk.decoratorApply.expectToCallEnterVariadic
 			fsk.decoratorApply.expectToCallEnterVariadic = nil
 
 			pointerToEnterVariadic := reflect.ValueOf(callbacks.EnterVariadic).Pointer()

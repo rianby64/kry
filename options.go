@@ -89,13 +89,18 @@ func WithCloneHandler[Param any](handler CloneHandler[Param]) func(o *Options[Pa
 // During apply, in the history, the transition will reflect if the expected handler was called or not.
 func ExpectEnter[Action comparable, State comparable, Param any](
 	handler handler[Action, State, Param],
-) func(fsk *FSM[Action, State, Param]) *FSM[Action, State, Param] {
-	return func(fsk *FSM[Action, State, Param]) *FSM[Action, State, Param] {
-		if fsk.decoratorApply == nil {
-			fsk.decoratorApply = &decoratorApply[Action, State, Param]{}
+) func(fsk InstanceFSM[Action, State, Param]) InstanceFSM[Action, State, Param] {
+	return func(fsk InstanceFSM[Action, State, Param]) InstanceFSM[Action, State, Param] {
+		fsm, ok := fsk.(*FSM[Action, State, Param])
+		if !ok {
+			panic("unable to cast FSM instance in ExpectEnter")
 		}
 
-		fsk.decoratorApply.expectToCallEnter = append(fsk.decoratorApply.expectToCallEnter, handler)
+		if fsm.decoratorApply == nil {
+			fsm.decoratorApply = &decoratorApply[Action, State, Param]{}
+		}
+
+		fsm.decoratorApply.expectToCallEnter = append(fsm.decoratorApply.expectToCallEnter, handler)
 
 		return fsk
 	}
@@ -106,13 +111,18 @@ func ExpectEnter[Action comparable, State comparable, Param any](
 // During apply, in the history, the transition will reflect if the expected handler was called or not.
 func ExpectEnterNoParams[Action comparable, State comparable, Param any](
 	handler handlerNoParams[Action, State, Param],
-) func(fsk *FSM[Action, State, Param]) *FSM[Action, State, Param] {
-	return func(fsk *FSM[Action, State, Param]) *FSM[Action, State, Param] {
-		if fsk.decoratorApply == nil {
-			fsk.decoratorApply = &decoratorApply[Action, State, Param]{}
+) func(fsk InstanceFSM[Action, State, Param]) InstanceFSM[Action, State, Param] {
+	return func(fsk InstanceFSM[Action, State, Param]) InstanceFSM[Action, State, Param] {
+		fsm, ok := fsk.(*FSM[Action, State, Param])
+		if !ok {
+			panic("unable to cast FSM instance in ExpectEnterNoParams")
 		}
 
-		fsk.decoratorApply.expectToCallEnterNoParams = append(fsk.decoratorApply.expectToCallEnterNoParams, handler)
+		if fsm.decoratorApply == nil {
+			fsm.decoratorApply = &decoratorApply[Action, State, Param]{}
+		}
+
+		fsm.decoratorApply.expectToCallEnterNoParams = append(fsm.decoratorApply.expectToCallEnterNoParams, handler)
 
 		return fsk
 	}
@@ -123,21 +133,31 @@ func ExpectEnterNoParams[Action comparable, State comparable, Param any](
 // During apply, in the history, the transition will reflect if the expected handler was called or not.
 func ExpectEnterVariadic[Action comparable, State comparable, Param any](
 	handler handlerVariadic[Action, State, Param],
-) func(fsk *FSM[Action, State, Param]) *FSM[Action, State, Param] {
-	return func(fsk *FSM[Action, State, Param]) *FSM[Action, State, Param] {
-		if fsk.decoratorApply == nil {
-			fsk.decoratorApply = &decoratorApply[Action, State, Param]{}
+) func(fsk InstanceFSM[Action, State, Param]) InstanceFSM[Action, State, Param] {
+	return func(fsk InstanceFSM[Action, State, Param]) InstanceFSM[Action, State, Param] {
+		fsm, ok := fsk.(*FSM[Action, State, Param])
+		if !ok {
+			panic("unable to cast FSM instance in ExpectEnterVariadic")
 		}
 
-		fsk.decoratorApply.expectToCallEnterVariadic = append(fsk.decoratorApply.expectToCallEnterVariadic, handler)
+		if fsm.decoratorApply == nil {
+			fsm.decoratorApply = &decoratorApply[Action, State, Param]{}
+		}
+
+		fsm.decoratorApply.expectToCallEnterVariadic = append(fsm.decoratorApply.expectToCallEnterVariadic, handler)
 
 		return fsk
 	}
 }
 
-func (fsk *FSM[Action, State, Param]) With(opts ...func(fsk *FSM[Action, State, Param]) *FSM[Action, State, Param]) *FSM[Action, State, Param] {
+func (fsk *FSM[Action, State, Param]) With(opts ...func(fsk InstanceFSM[Action, State, Param]) InstanceFSM[Action, State, Param]) InstanceFSM[Action, State, Param] {
 	for _, o := range opts {
-		fsk = o(fsk)
+		fsm, ok := o(fsk).(*FSM[Action, State, Param])
+		if !ok {
+			return nil
+		}
+
+		fsk = fsm
 	}
 
 	return fsk
