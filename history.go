@@ -11,12 +11,6 @@ const (
 	defaultSkipStackTrace = 3
 )
 
-type expectFailed struct {
-	EnterNoParams bool
-	Enter         bool
-	EnterVariadic bool
-}
-
 type HistoryItem[Action, State comparable, Param any] struct {
 	// Below, these are the inputs
 
@@ -32,7 +26,7 @@ type HistoryItem[Action, State comparable, Param any] struct {
 	Reason     string
 	Ignored    bool
 
-	ExpectFailed expectFailed
+	ExpectFailed bool
 }
 
 type historyItem[Action, State comparable, Param any] struct {
@@ -75,7 +69,7 @@ func newHistoryItem[Action, State comparable, Param any](
 	to State,
 	err error,
 	ignored bool,
-	expectFailed expectFailed,
+	expectFailed bool,
 	params ...Param,
 ) *historyItem[Action, State, Param] {
 	return &historyItem[Action, State, Param]{
@@ -105,7 +99,7 @@ func cloneHandler[Param any](params ...Param) ([]Param, error) {
 
 func (hk *historyKeeper[Action, State, Param]) Push(
 	action Action, from State, to State,
-	err error, skipStackTrace int, ignored bool, expectFailed expectFailed,
+	err error, skipStackTrace int, ignored bool, expectFailed bool,
 	params ...Param,
 ) error {
 	if hk.maxLength == 0 {
@@ -222,7 +216,7 @@ func (fsk *FSM[Action, State, Param]) intermediateKeeper(
 	from, to State,
 	err error,
 	ignored bool,
-	expectFailed expectFailed,
+	expectFailed bool,
 	param ...Param,
 ) (*historyKeeper[Action, State, Param], error) {
 	finalKeeper := newHistoryKeeper[Action, State](

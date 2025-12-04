@@ -242,7 +242,6 @@ func (fsk *FSM[Action, State, Param]) Apply(
 	ctx context.Context, action Action, newState State, param ...Param,
 ) error {
 	currentState := fsk.currentState
-	emptyExpectFailed := expectFailed{}
 
 	defer func() {
 		if errPanic := recover(); errPanic != nil {
@@ -254,7 +253,7 @@ func (fsk *FSM[Action, State, Param]) Apply(
 
 			if errHistory := fsk.historyKeeper.Push(
 				action, currentState, newState,
-				err, defaultSkipStackTrace, fsk.ignoreCurrent, emptyExpectFailed,
+				err, defaultSkipStackTrace, fsk.ignoreCurrent, false,
 				param...,
 			); errHistory != nil {
 				err = fmt.Errorf("%w: failed to push history item: %w", err, errHistory)
@@ -279,7 +278,7 @@ func (fsk *FSM[Action, State, Param]) Apply(
 		err = ErrUnknown
 		if errHistory := fsk.historyKeeper.Push(
 			action, currentState, newState,
-			err, defaultSkipStackTrace, fsk.ignoreCurrent, emptyExpectFailed,
+			err, defaultSkipStackTrace, fsk.ignoreCurrent, false,
 			param...,
 		); errHistory != nil {
 			err = fmt.Errorf("%w: failed to push history item: %w", err, errHistory)
@@ -315,7 +314,7 @@ func (fsk *FSM[Action, State, Param]) Apply(
 	err = ErrNotFound
 	if errHistory := fsk.historyKeeper.Push(
 		action, currentState, newState,
-		err, defaultSkipStackTrace, fsk.ignoreCurrent, emptyExpectFailed,
+		err, defaultSkipStackTrace, fsk.ignoreCurrent, false,
 		param...,
 	); errHistory != nil {
 		err = fmt.Errorf("%w: failed to push history item: %w", err, errHistory)

@@ -40,12 +40,10 @@ func Test_option_expect_enter_handler_ok(t *testing.T) {
 
 	expectedHistory := []HistoryItem[string, int, any]{
 		{
-			Action: "open",
-			From:   close,
-			To:     open,
-			ExpectFailed: expectFailed{
-				Enter: true,
-			},
+			Action:       "open",
+			From:         close,
+			To:           open,
+			ExpectFailed: true,
 		},
 	}
 

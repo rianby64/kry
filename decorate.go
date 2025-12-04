@@ -4,13 +4,11 @@ import (
 	"reflect"
 )
 
-func (fsk *FSM[Action, State, Param]) decorateWithExpectApply(callbacks callbacks[Action, State, Param]) expectFailed {
+func (fsk *FSM[Action, State, Param]) decorateWithExpectApply(callbacks callbacks[Action, State, Param]) bool {
 	var (
 		expectToCallEnterNoParams []handlerNoParams[Action, State, Param]
 		expectToCallEnter         []handler[Action, State, Param]
 		expectToCallEnterVariadic []handlerVariadic[Action, State, Param]
-
-		expectFailed expectFailed
 	)
 
 	if fsk.decoratorApply != nil {
@@ -28,7 +26,7 @@ func (fsk *FSM[Action, State, Param]) decorateWithExpectApply(callbacks callback
 				}
 			}
 
-			expectFailed.Enter = !expectedEnterFound
+			return !expectedEnterFound
 		}
 
 		if len(fsk.decoratorApply.expectToCallEnter) > 0 {
@@ -45,7 +43,7 @@ func (fsk *FSM[Action, State, Param]) decorateWithExpectApply(callbacks callback
 				}
 			}
 
-			expectFailed.EnterNoParams = !expectedEnterNoParamsFound
+			return !expectedEnterNoParamsFound
 		}
 
 		if len(fsk.decoratorApply.expectToCallEnter) > 0 {
@@ -62,9 +60,9 @@ func (fsk *FSM[Action, State, Param]) decorateWithExpectApply(callbacks callback
 				}
 			}
 
-			expectFailed.EnterVariadic = !expectedEnterVariadicFound
+			return !expectedEnterVariadicFound
 		}
 	}
 
-	return expectFailed
+	return false
 }
