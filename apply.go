@@ -237,6 +237,10 @@ func (fsk *FSM[Action, State, Param]) Event(
 	return nil
 }
 
+func (fsk *FSM[Action, State, Param]) generateTransitionMsg(curr, next State) string {
+	return fmt.Sprintf("transition from %v to %v", curr, next)
+}
+
 func (fsk *FSM[Action, State, Param]) Apply(
 	ctx context.Context, action Action, newState State, param ...Param,
 ) error {
@@ -255,7 +259,9 @@ func (fsk *FSM[Action, State, Param]) Apply(
 				err, defaultSkipStackTrace, fsk.ignoreCurrent, false,
 				param...,
 			); errHistory != nil {
-				err = fmt.Errorf("%w: failed to push history item: %w", err, errHistory)
+				err = fmt.Errorf("%v:%w: failed to push history item: %w",
+					fsk.generateTransitionMsg(currentState, newState), err, errHistory,
+				)
 			}
 
 			if fsk.panicHandler != nil {
@@ -280,32 +286,35 @@ func (fsk *FSM[Action, State, Param]) Apply(
 			err, defaultSkipStackTrace, fsk.ignoreCurrent, false,
 			param...,
 		); errHistory != nil {
-			err = fmt.Errorf("%w: failed to push history item: %w", err, errHistory)
+			err = fmt.Errorf("%v:%w: failed to push history item: %w",
+				fsk.generateTransitionMsg(currentState, newState), err, errHistory,
+			)
 		}
 
-		return fmt.Errorf("action %w: %v", err, action)
+		return fmt.Errorf("%v: action %w: %v",
+			fsk.generateTransitionMsg(currentState, newState), err, action)
 	}
 
 	if applied, err := fsk.applyByExact(ctxWithLoop, action, newState, param...); err != nil {
-		return err
+		return fmt.Errorf("%v: %w", fsk.generateTransitionMsg(currentState, newState), err)
 	} else if applied {
 		return nil
 	}
 
 	if applied, err := fsk.applyByMatchSrcDst(ctxWithLoop, matchSrc, action, newState, param...); err != nil {
-		return err
+		return fmt.Errorf("%v: %w", fsk.generateTransitionMsg(currentState, newState), err)
 	} else if applied {
 		return nil
 	}
 
 	if applied, err := fsk.applyByMatchSrcDst(ctxWithLoop, matchDst, action, newState, param...); err != nil {
-		return err
+		return fmt.Errorf("%v: %w", fsk.generateTransitionMsg(currentState, newState), err)
 	} else if applied {
 		return nil
 	}
 
 	if applied, err := fsk.applyByMatch(ctxWithLoop, action, newState, param...); err != nil {
-		return err
+		return fmt.Errorf("%v: %w", fsk.generateTransitionMsg(currentState, newState), err)
 	} else if applied {
 		return nil
 	}
@@ -319,5 +328,5 @@ func (fsk *FSM[Action, State, Param]) Apply(
 		err = fmt.Errorf("%w: failed to push history item: %w", err, errHistory)
 	}
 
-	return fmt.Errorf("transition (%v) from state %v: %w", action, currentState, err)
+	return fmt.Errorf("transition (%v) %v: %w", action, fsk.generateTransitionMsg(currentState, newState), err)
 }
