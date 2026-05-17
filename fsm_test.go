@@ -25,6 +25,25 @@ func Test_previous_on_fresh_machine_returns_initial_state(t *testing.T) {
 	require.Equal(t, initialState, machine.Previous())
 }
 
+func Test_previous_unchanged_after_failed_apply(t *testing.T) {
+	const (
+		close int = iota + 1
+		open
+		other
+	)
+
+	machine, _ := New(close, []Transition[string, int, any]{
+		{Name: "open", Src: []int{close}, Dst: open},
+		{Name: "close", Src: []int{open}, Dst: close},
+	})
+
+	require.NoError(t, machine.Apply(context.TODO(), "open", open))
+	require.Equal(t, close, machine.Previous())
+
+	require.ErrorIs(t, machine.Apply(context.TODO(), "open", other), ErrNotFound)
+	require.Equal(t, close, machine.Previous())
+}
+
 func Test_set_initialState_int_ok(t *testing.T) {
 	machine, _ := New(1, []Transition[string, int, any]{})
 

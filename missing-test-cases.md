@@ -5,11 +5,6 @@
 - **Unknown state** — `ForceState()` with a state not registered in any transition should return `ErrUnknown`. The code exists (`fsm.go:162-172`) but there is no test for it.
 - **Called outside a callback** — `Test_force_state` only tests `ForceState()` from inside an `Enter` callback. Calling it directly on the machine (outside any apply) is not tested.
 
-## `Previous()`
-
-- **Fresh FSM** — `Previous()` on a newly created machine before any transition should return the zero value of `State`. Not tested.
-- **After a failed `Apply`** — `Previous()` should remain unchanged when `Apply` returns an error (state rolls back). Not tested explicitly (the failing-callback tests only check `Current()`).
-
 ## `Event()`
 
 - **With params** — every test that calls `Event()` passes no params. Passing one or more params through `Event()` is not tested.

@@ -127,6 +127,7 @@ func New[Action, State comparable, Param any](
 	return &FSM[Action, State, Param]{
 		id:             idMachine,
 		currentState:   initialState,
+		previousState:  initialState,
 		path:           path,
 		pathByMatchSrc: pathByMatchSrc,
 		pathByMatchDst: pathByMatchDst,
