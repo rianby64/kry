@@ -209,8 +209,6 @@ func (fsk *FSM[Action, State, Param]) applyTransitionByLengthParams(
 		if err := stateTransition.EnterVariadic(ctx, fsk, param...); err != nil {
 			return fmt.Errorf("failed to execute enter (variadic) callback: %w", err)
 		}
-
-		return nil
 	}
 
 	return nil

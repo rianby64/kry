@@ -53,7 +53,7 @@ func (fsk *FSM[Action, State, Param]) checkLoop(
 		ok          bool
 	)
 
-	loopKeyValue := loopKey + ctxKeyLoop(fsk.id)
+	loopKeyValue := ctxKeyLoop(fsk.id)
 	loopFromCtx := ctx.Value(loopKeyValue)
 	if loopFromCtx == nil {
 		loopEx = newLoopDetection[State](fsk.id)

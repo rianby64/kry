@@ -16,6 +16,15 @@ func Test_set_initialState_string_ok(t *testing.T) {
 	require.Equal(t, "INITIAL_STATE", machine.Current())
 }
 
+func Test_previous_on_fresh_machine_returns_initial_state(t *testing.T) {
+	const initialState = "INITIAL_STATE"
+
+	machine, _ := New(initialState, []Transition[string, string, any]{})
+
+	require.Equal(t, initialState, machine.Previous())
+	require.Equal(t, initialState, machine.Previous())
+}
+
 func Test_set_initialState_int_ok(t *testing.T) {
 	machine, _ := New(1, []Transition[string, int, any]{})
 

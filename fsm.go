@@ -12,8 +12,6 @@ func (e errString) Error() string {
 }
 
 const (
-	loopKey ctxKeyLoop = 482 // just a random number
-
 	ErrUnknown  errString = "unknown"
 	ErrNotFound errString = "not found"
 	ErrRepeated errString = "already exists"
