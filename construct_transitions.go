@@ -63,10 +63,6 @@ func constructFromTransitions[Action, State comparable, Param any](
 		}
 
 		dst := transition.Dst
-		if dst == zeroState && transition.DstFn == nil {
-			return nil, nil, nil, nil, nil, nil, false,
-				fmt.Errorf("for action %v(index=%d) destination state is zero value: %w", action, index, ErrNotAllowed)
-		}
 
 		if transition.DstFn != nil {
 			if _, ok := pathByMatchDst[action]; !ok {
@@ -90,7 +86,7 @@ func constructFromTransitions[Action, State comparable, Param any](
 			}
 		}
 
-		if dst == zeroState {
+		if dst == zeroState && transition.DstFn != nil {
 			continue
 		}
 

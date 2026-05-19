@@ -954,20 +954,6 @@ func Test_force_state(t *testing.T) {
 	require.Equal(t, close, machine.Current())
 }
 
-func Test_avoid_zero_dst(t *testing.T) {
-	const (
-		close int = iota
-		open
-	)
-
-	machine, err := New(close, []Transition[string, int, any]{
-		{Name: "open", Src: []int{close}, Dst: open},
-		{Name: "close", Src: []int{open}, Dst: close},
-	})
-
-	require.Nil(t, machine)
-	require.ErrorIs(t, err, ErrNotAllowed)
-}
 
 func Test_transit_match_dst_case1(t *testing.T) {
 	const (

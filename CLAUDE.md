@@ -18,28 +18,107 @@ go test -v ./...
 go build ./...
 ```
 
-## Architecture
+## Status
 
-`kry` is a generic finite state machine (FSM) library. The three type parameters used throughout are `Action` (comparable), `State` (comparable), and `Param` (any).
+This repository is mid-transition from v1 to v2. The current code is v1. The design decisions for v2 are recorded in `critics-weak-points.md`. The remainder of this file describes the **v2 target architecture**.
 
-### Core files
+## v2 Architecture
 
-- **`fsm.go`** — Defines `FSM[A,S,P]`, the `InstanceFSM` interface, and the `Transition` struct. `New()` is the only constructor; it takes an initial state, a slice of transitions, and option funcs.
-- **`construct_transitions.go`** — Parses the transition slice into four internal lookup maps keyed by action and state. Called once at construction; the structure is immutable after that.
-- **`apply.go`** — `Apply()` and `Event()` are the two public methods to trigger transitions. `Apply()` requires an explicit target state; `Event()` derives the target from the transition definition (disabled if any action maps to multiple destinations). Resolution priority inside `Apply()`: exact match → SrcFn match → DstFn match → both-Fn match.
-- **`check_loop.go`** — Loop detection stored in `context.Context`. Each FSM tracks its own transitions by a unique `uint64` ID embedded as the context key, so two FSMs sharing a context do not interfere with each other's loop counters.
-- **`options.go`** — Functional options (`WithHistory`, `WithFullHistory`, `WithStackTrace`, `WithPanicHandler`, `WithCloneHandler`) and the `Expect*` decorator functions. `With(opts...)` returns `InstanceFSM`, enabling one-shot decorator chaining without mutating the FSM permanently.
-- **`history.go`** — `HistoryItem` and an internal singly-linked list (`historyKeeper`) with optional size cap. History is disabled by default (size 0); enabled with `WithFullHistory` or `WithHistory(n)`.
-- **`expect_handlers.go`** — `checkCallbacksAgainstExpectHandlers()` compares function pointers of expected vs. actual callbacks, setting `ExpectFailed` in the history item when they don't match.
-- **`viz.go`** — `VisualizeActions` / `VisualizeStateLinks` produce Graphviz DOT output. `FSM.String()` returns a `digraph` block generated at construction time.
+`kry` is a generic finite state machine (FSM) library. The v2 type signature drops `Action` as a type parameter — `Name` is demoted from a generic key to a plain string label used only for history and visualization.
 
-### Callback dispatch
+```
+v1: FSM[Action, State comparable, Param any]
+v2: FSM[State comparable, Param any]
+```
 
-Each `Transition` can carry up to three callback fields: `EnterNoParams`, `Enter`, and `EnterVariadic`. The FSM dispatches based on the number of params passed at call time: zero → `EnterNoParams`, one → `Enter`, two or more → `EnterVariadic`. If the exact-arity callback is nil, it falls back to `EnterVariadic`.
+### Construction
 
-### Key invariants
+The `New()` + `[]Transition{}` API is replaced by a builder:
 
-- State zero value must not be used as a valid state; `Dst: 0` (or equivalent zero) is rejected at construction with `ErrNotAllowed`.
-- `Event()` is disabled (`ErrNotAllowed`) when any action name appears in multiple transitions with different `Dst` values — use `Apply()` instead.
-- `IgnoreCurrentTransition()` silently rolls the state back inside a callback without returning an error; it is a no-op when called outside an active `apply`.
-- Nested `Apply()` calls inside callbacks (chaining transitions) are valid; loop detection prevents re-entering the same `from→to` pair in the same FSM.
+```go
+machine, err := kry.Build[State, Param](initialState).
+    GoingTo(dst, sources...).
+    FnGoingTo(dstFn, sources...).
+    WithFullHistory().
+    WithPanicHandler(handler).
+    Create()
+```
+
+Source matchers passed to `GoingTo` / `FnGoingTo`:
+
+```go
+kry.From(states...)      // exact source list
+kry.FnFrom(fn)           // function-matched source
+```
+
+Each source matcher is chained with `.On(name, handler)` to attach a label and a typed callback. Multiple `.On()` calls on the same source express different arities for the same transition:
+
+```go
+kry.From(Draft).
+    On("Submit", kry.OnEnter(notifyReviewer)).          // len(params) == 0
+    On("Submit", kry.OnEnterWith(notifyWithReason)).    // len(params) == 1
+    On("Submit", kry.OnEnterVariadic(notifyAll))        // len(params) >= 2
+```
+
+### Transition model
+
+- A transition is identified by `(current state, destination state, arity)`, not by action name.
+- `Apply(ctx, dst, params...)` is the only trigger method — `Event()` is removed.
+- Construction rejects two transitions with the same `(src, dst)` pair and the same arity.
+
+### Callback constructors
+
+Replace the three struct fields with typed constructors that encode arity explicitly:
+
+| Constructor | Fires when |
+|---|---|
+| `kry.OnEnter(fn)` | `len(params) == 0` |
+| `kry.OnEnterWith(fn)` | `len(params) == 1` |
+| `kry.OnEnterVariadic(fn)` | `len(params) >= 2` |
+
+No silent fallthrough between arities — missing arity returns an error.
+
+### Fn* matching rule
+
+`FnFrom` and `FnGoingTo` are compact notation for large state ranges, not middleware or fallbacks.
+
+Resolution order per `Apply` call:
+1. **Exact beats Fn*** — a `GoingTo` + `From` match wins over any `FnGoingTo` or `FnFrom` match.
+2. **Among Fn* matches, first registered wins** — order `FnGoingTo` / `FnFrom` blocks from most specific to least specific.
+
+Construction-time overlap detection for Fn* is not feasible (determining whether two arbitrary Go functions overlap is undecidable). The two-tier rule is the documented contract.
+
+### Escape hatches
+
+Both methods are intentional but must be visible in history:
+
+- **`IgnoreCurrentTransition()`** — rolls back the state change inside a callback without returning an error. Recorded as `Ignored: bool` in `HistoryItem`.
+- **`ForceState(state)`** — sets the current state to any registered state, bypassing transition rules. Rejects unregistered states with `ErrUnknown`. Needs `Forced: bool` and `ForcedTo: *State` added to `HistoryItem`.
+
+`HistoryItem.HasViolation()` returns `Ignored || Forced` — a single predicate for auditing escape hatch usage.
+
+### Single Param type
+
+Each machine fixes one `Param` type. For transitions that carry different data, the recommended pattern is a union struct with one pointer field per variant and named constructors:
+
+```go
+type CarParam struct {
+    Speed    *float64
+    Pressure *float64
+}
+func ForRide(speed float64) CarParam    { return CarParam{Speed: &speed} }
+func ForStop(p float64) CarParam        { return CarParam{Pressure: &p} }
+```
+
+This is a language constraint, not a design flaw. The union struct keeps the machine's input vocabulary explicit and makes history uniform.
+
+### Core files (v1, pending rewrite)
+
+- **`fsm.go`** — `FSM[A,S,P]`, `InstanceFSM` interface, `Transition` struct, `New()` constructor.
+- **`construct_transitions.go`** — Parses transitions into four internal maps (`path`, `pathByMatchSrc`, `pathByMatchDst`, `pathMatch`). Called once at construction; immutable after.
+- **`apply.go`** — `Apply()` and `Event()`. Resolution priority: exact → SrcFn → DstFn → both-Fn.
+- **`check_loop.go`** — Loop detection in `context.Context`, keyed by FSM `uint64` ID.
+- **`options.go`** — Functional options and `Expect*` decorator functions.
+- **`history.go`** — `HistoryItem` and `historyKeeper` (singly-linked list, optional size cap).
+- **`expect_handlers.go`** — Compares expected vs. actual callback function pointers.
+- **`viz.go`** — Graphviz DOT output via `VisualizeActions` / `VisualizeStateLinks`.
