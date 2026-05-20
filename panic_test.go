@@ -16,7 +16,7 @@ func Test_panic_case1(t *testing.T) {
 	)
 
 	ctx := context.Background()
-	machine, _ := New(close, []Transition[string, int, any]{
+	machine, _ := New(close, []Transition[int, any]{
 		{
 			Name: "open",
 			Src:  []int{close},
@@ -26,7 +26,7 @@ func Test_panic_case1(t *testing.T) {
 			Name: "close",
 			Src:  []int{open},
 			Dst:  close,
-			EnterNoParams: func(ctx context.Context, instance InstanceFSM[string, int, any]) error {
+			EnterNoParams: func(ctx context.Context, instance InstanceFSM[int, any]) error {
 				panic("intentional panic")
 			},
 		},
@@ -38,22 +38,22 @@ func Test_panic_case1(t *testing.T) {
 		WithEnabledStackTrace[any](),
 	)
 
-	require.NoError(t, machine.Apply(ctx, "open", open))
+	require.NoError(t, machine.Apply(ctx, open))
 	require.Equal(t, open, machine.Current())
 
-	require.NoError(t, machine.Apply(ctx, "close", close))
+	require.NoError(t, machine.Apply(ctx, close))
 	require.Equal(t, open, machine.Current())
 
 	history := machine.History()
-	expectedHistory := []HistoryItem[string, int, any]{
+	expectedHistory := []HistoryItem[int, any]{
 		{
-			Action: "open",
+			Name:   "open",
 			From:   close,
 			To:     open,
 			Params: nil,
 		},
 		{
-			Action: "close",
+			Name:   "close",
 			From:   open,
 			To:     close,
 			Params: nil,
@@ -61,7 +61,7 @@ func Test_panic_case1(t *testing.T) {
 	}
 
 	for index, historyItem := range history {
-		assert.Equal(t, expectedHistory[index].Action, historyItem.Action)
+		assert.Equal(t, expectedHistory[index].Name, historyItem.Name)
 		assert.Equal(t, expectedHistory[index].From, historyItem.From)
 		assert.Equal(t, expectedHistory[index].To, historyItem.To)
 		assert.Equal(t, expectedHistory[index].Params, historyItem.Params)

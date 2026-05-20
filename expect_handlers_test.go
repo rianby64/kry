@@ -13,7 +13,7 @@ func Test_option_expect_enter_handler_ok(t *testing.T) {
 		open
 	)
 
-	type instance = InstanceFSM[string, int, any]
+	type instance = InstanceFSM[int, any]
 
 	handlerOpen := func(ctx context.Context, instance instance, param any) error {
 		return nil
@@ -23,7 +23,7 @@ func Test_option_expect_enter_handler_ok(t *testing.T) {
 		return nil
 	}
 
-	machine, _ := New(close, []Transition[string, int, any]{
+	machine, _ := New(close, []Transition[int, any]{
 		{
 			Name:  "open",
 			Src:   []int{close},
@@ -38,28 +38,28 @@ func Test_option_expect_enter_handler_ok(t *testing.T) {
 		},
 	}, WithFullHistory[any]())
 
-	expectedHistory := []HistoryItem[string, int, any]{
+	expectedHistory := []HistoryItem[int, any]{
 		{
-			Action:       "open",
+			Name:         "open",
 			From:         close,
 			To:           open,
 			ExpectFailed: true,
 		},
 		{
-			Action: "close",
-			From:   open,
-			To:     close,
+			Name: "close",
+			From: open,
+			To:   close,
 		},
 	}
 
 	require.NoError(t, machine.
 		With(ExpectEnter(handlerClose)).
-		Apply(context.TODO(), "open", open))
+		Apply(context.TODO(), open))
 	require.Equal(t, open, machine.Current())
 
 	require.NoError(t, machine.
 		With(ExpectEnter(handlerClose)).
-		Apply(context.TODO(), "close", close))
+		Apply(context.TODO(), close))
 	require.Equal(t, close, machine.Current())
 
 	require.Equal(t, expectedHistory, machine.History())
@@ -71,7 +71,7 @@ func Test_option_expect_enter_no_params_handler_ok(t *testing.T) {
 		open
 	)
 
-	type instance = InstanceFSM[string, int, any]
+	type instance = InstanceFSM[int, any]
 
 	handlerOpen := func(ctx context.Context, instance instance) error {
 		return nil
@@ -81,7 +81,7 @@ func Test_option_expect_enter_no_params_handler_ok(t *testing.T) {
 		return nil
 	}
 
-	machine, _ := New(close, []Transition[string, int, any]{
+	machine, _ := New(close, []Transition[int, any]{
 		{
 			Name:          "open",
 			Src:           []int{close},
@@ -96,28 +96,28 @@ func Test_option_expect_enter_no_params_handler_ok(t *testing.T) {
 		},
 	}, WithFullHistory[any]())
 
-	expectedHistory := []HistoryItem[string, int, any]{
+	expectedHistory := []HistoryItem[int, any]{
 		{
-			Action:       "open",
+			Name:         "open",
 			From:         close,
 			To:           open,
 			ExpectFailed: true,
 		},
 		{
-			Action: "close",
-			From:   open,
-			To:     close,
+			Name: "close",
+			From: open,
+			To:   close,
 		},
 	}
 
 	require.NoError(t, machine.
 		With(ExpectEnterNoParams(handlerClose)).
-		Apply(context.TODO(), "open", open))
+		Apply(context.TODO(), open))
 	require.Equal(t, open, machine.Current())
 
 	require.NoError(t, machine.
 		With(ExpectEnterNoParams(handlerClose)).
-		Apply(context.TODO(), "close", close))
+		Apply(context.TODO(), close))
 	require.Equal(t, close, machine.Current())
 
 	require.Equal(t, expectedHistory, machine.History())
@@ -129,7 +129,7 @@ func Test_option_expect_enter_variadic_handler_ok(t *testing.T) {
 		open
 	)
 
-	type instance = InstanceFSM[string, int, any]
+	type instance = InstanceFSM[int, any]
 
 	handlerOpen := func(ctx context.Context, instance instance, params ...any) error {
 		return nil
@@ -139,7 +139,7 @@ func Test_option_expect_enter_variadic_handler_ok(t *testing.T) {
 		return nil
 	}
 
-	machine, _ := New(close, []Transition[string, int, any]{
+	machine, _ := New(close, []Transition[int, any]{
 		{
 			Name:          "open",
 			Src:           []int{close},
@@ -154,28 +154,28 @@ func Test_option_expect_enter_variadic_handler_ok(t *testing.T) {
 		},
 	}, WithFullHistory[any]())
 
-	expectedHistory := []HistoryItem[string, int, any]{
+	expectedHistory := []HistoryItem[int, any]{
 		{
-			Action:       "open",
+			Name:         "open",
 			From:         close,
 			To:           open,
 			ExpectFailed: true,
 		},
 		{
-			Action: "close",
-			From:   open,
-			To:     close,
+			Name: "close",
+			From: open,
+			To:   close,
 		},
 	}
 
 	require.NoError(t, machine.
 		With(ExpectEnterVariadic(handlerClose)).
-		Apply(context.TODO(), "open", open))
+		Apply(context.TODO(), open))
 	require.Equal(t, open, machine.Current())
 
 	require.NoError(t, machine.
 		With(ExpectEnterVariadic(handlerClose)).
-		Apply(context.TODO(), "close", close))
+		Apply(context.TODO(), close))
 	require.Equal(t, close, machine.Current())
 
 	require.Equal(t, expectedHistory, machine.History())
@@ -188,11 +188,11 @@ func Test_option_expect_level2_enter_handler_case1_ok(t *testing.T) {
 		open
 	)
 
-	type instance = InstanceFSM[string, int, string]
+	type instance = InstanceFSM[int, string]
 
 	handlerOpen := func(ctx context.Context, instance instance, param string) error {
 		if param == "goto-roger" {
-			return instance.Apply(ctx, "roger", roger)
+			return instance.Apply(ctx, roger)
 		}
 
 		return nil
@@ -206,7 +206,7 @@ func Test_option_expect_level2_enter_handler_case1_ok(t *testing.T) {
 		return nil
 	}
 
-	transitions := []Transition[string, int, string]{
+	transitions := []Transition[int, string]{
 		{
 			Name:  "open",
 			Src:   []int{close},
@@ -228,33 +228,33 @@ func Test_option_expect_level2_enter_handler_case1_ok(t *testing.T) {
 	}
 	machine, _ := New(close, transitions, WithFullHistory[string]())
 
-	expectedHistory := []HistoryItem[string, int, string]{
+	expectedHistory := []HistoryItem[int, string]{
 		{
-			Action:       "open",
+			Name:         "open",
 			From:         close,
 			To:           open,
 			Params:       []string{"goto-roger"},
 			ExpectFailed: true,
 		},
 		{
-			Action: "roger",
-			From:   open,
-			To:     roger,
+			Name: "roger",
+			From: open,
+			To:   roger,
 		},
 		{
-			Action: "close",
-			From:   roger,
-			To:     close,
+			Name: "close",
+			From: roger,
+			To:   close,
 		},
 	}
 
 	require.NoError(t, machine.
 		With(ExpectEnter(handlerClose)).
-		Apply(context.TODO(), "open", open, "goto-roger"))
+		Apply(context.TODO(), open, "goto-roger"))
 	require.Equal(t, roger, machine.Current())
 
 	require.NoError(t, machine.
-		Apply(context.TODO(), "close", close))
+		Apply(context.TODO(), close))
 	require.Equal(t, close, machine.Current())
 
 	require.Equal(t, expectedHistory, machine.History())
@@ -267,7 +267,7 @@ func Test_option_expect_level2_enter_handler_case2_ok(t *testing.T) {
 		open
 	)
 
-	type instance = InstanceFSM[string, int, string]
+	type instance = InstanceFSM[int, string]
 
 	var (
 		handlerOpen,
@@ -279,7 +279,7 @@ func Test_option_expect_level2_enter_handler_case2_ok(t *testing.T) {
 		if param == "goto-roger" {
 			return instance.
 				With(ExpectEnter(handlerOpen)).
-				Apply(ctx, "roger", roger)
+				Apply(ctx, roger)
 		}
 
 		return nil
@@ -293,7 +293,7 @@ func Test_option_expect_level2_enter_handler_case2_ok(t *testing.T) {
 		return nil
 	}
 
-	transitions := []Transition[string, int, string]{
+	transitions := []Transition[int, string]{
 		{
 			Name:  "open",
 			Src:   []int{close},
@@ -315,34 +315,34 @@ func Test_option_expect_level2_enter_handler_case2_ok(t *testing.T) {
 	}
 	machine, _ := New(close, transitions, WithFullHistory[string]())
 
-	expectedHistory := []HistoryItem[string, int, string]{
+	expectedHistory := []HistoryItem[int, string]{
 		{
-			Action:       "open",
+			Name:         "open",
 			From:         close,
 			To:           open,
 			Params:       []string{"goto-roger"},
 			ExpectFailed: true,
 		},
 		{
-			Action:       "roger",
+			Name:         "roger",
 			From:         open,
 			To:           roger,
 			ExpectFailed: true,
 		},
 		{
-			Action: "close",
-			From:   roger,
-			To:     close,
+			Name: "close",
+			From: roger,
+			To:   close,
 		},
 	}
 
 	require.NoError(t, machine.
 		With(ExpectEnter(handlerClose)).
-		Apply(context.TODO(), "open", open, "goto-roger"))
+		Apply(context.TODO(), open, "goto-roger"))
 	require.Equal(t, roger, machine.Current())
 
 	require.NoError(t, machine.
-		Apply(context.TODO(), "close", close))
+		Apply(context.TODO(), close))
 	require.Equal(t, close, machine.Current())
 
 	require.Equal(t, expectedHistory, machine.History())
@@ -355,7 +355,7 @@ func Test_option_expect_level2_enter_handler_case3_ok(t *testing.T) {
 		open
 	)
 
-	type instance = InstanceFSM[string, int, string]
+	type instance = InstanceFSM[int, string]
 
 	var (
 		handlerOpen,
@@ -367,7 +367,7 @@ func Test_option_expect_level2_enter_handler_case3_ok(t *testing.T) {
 		if param == "goto-roger" {
 			return instance.
 				With(ExpectEnter(handlerOpen)).
-				Apply(ctx, "roger", roger)
+				Apply(ctx, roger)
 		}
 
 		return nil
@@ -381,7 +381,7 @@ func Test_option_expect_level2_enter_handler_case3_ok(t *testing.T) {
 		return nil
 	}
 
-	transitions := []Transition[string, int, string]{
+	transitions := []Transition[int, string]{
 		{
 			Name:  "open",
 			Src:   []int{close},
@@ -403,33 +403,33 @@ func Test_option_expect_level2_enter_handler_case3_ok(t *testing.T) {
 	}
 	machine, _ := New(close, transitions, WithFullHistory[string]())
 
-	expectedHistory := []HistoryItem[string, int, string]{
+	expectedHistory := []HistoryItem[int, string]{
 		{
-			Action: "open",
+			Name:   "open",
 			From:   close,
 			To:     open,
 			Params: []string{"goto-roger"},
 		},
 		{
-			Action:       "roger",
+			Name:         "roger",
 			From:         open,
 			To:           roger,
 			ExpectFailed: true,
 		},
 		{
-			Action: "close",
-			From:   roger,
-			To:     close,
+			Name: "close",
+			From: roger,
+			To:   close,
 		},
 	}
 
 	require.NoError(t, machine.
 		With(ExpectEnter(handlerOpen)).
-		Apply(context.TODO(), "open", open, "goto-roger"))
+		Apply(context.TODO(), open, "goto-roger"))
 	require.Equal(t, roger, machine.Current())
 
 	require.NoError(t, machine.
-		Apply(context.TODO(), "close", close))
+		Apply(context.TODO(), close))
 	require.Equal(t, close, machine.Current())
 
 	require.Equal(t, expectedHistory, machine.History())
@@ -442,7 +442,7 @@ func Test_option_expect_level2_enter_handler_case4_ok(t *testing.T) {
 		open
 	)
 
-	type instance = InstanceFSM[string, int, string]
+	type instance = InstanceFSM[int, string]
 
 	var (
 		handlerOpen,
@@ -453,7 +453,7 @@ func Test_option_expect_level2_enter_handler_case4_ok(t *testing.T) {
 	handlerOpen = func(ctx context.Context, instance instance, param string) error {
 		if param == "goto-roger" {
 			return instance.
-				Apply(ctx, "roger", roger)
+				Apply(ctx, roger)
 		}
 
 		return nil
@@ -467,7 +467,7 @@ func Test_option_expect_level2_enter_handler_case4_ok(t *testing.T) {
 		return nil
 	}
 
-	transitions := []Transition[string, int, string]{
+	transitions := []Transition[int, string]{
 		{
 			Name:  "open",
 			Src:   []int{close},
@@ -489,32 +489,32 @@ func Test_option_expect_level2_enter_handler_case4_ok(t *testing.T) {
 	}
 	machine, _ := New(close, transitions, WithFullHistory[string]())
 
-	expectedHistory := []HistoryItem[string, int, string]{
+	expectedHistory := []HistoryItem[int, string]{
 		{
-			Action: "open",
+			Name:   "open",
 			From:   close,
 			To:     open,
 			Params: []string{"goto-roger"},
 		},
 		{
-			Action: "roger",
-			From:   open,
-			To:     roger,
+			Name: "roger",
+			From: open,
+			To:   roger,
 		},
 		{
-			Action: "close",
-			From:   roger,
-			To:     close,
+			Name: "close",
+			From: roger,
+			To:   close,
 		},
 	}
 
 	require.NoError(t, machine.
 		With(ExpectEnter(handlerOpen)).
-		Apply(context.TODO(), "open", open, "goto-roger"))
+		Apply(context.TODO(), open, "goto-roger"))
 	require.Equal(t, roger, machine.Current())
 
 	require.NoError(t, machine.
-		Apply(context.TODO(), "close", close))
+		Apply(context.TODO(), close))
 	require.Equal(t, close, machine.Current())
 
 	require.Equal(t, expectedHistory, machine.History())

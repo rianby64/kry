@@ -20,12 +20,12 @@ func main() {
 
 	ctx := context.TODO()
 
-	fsk, err := kry.New(initial, []kry.Transition[string, int, CustomParam]{
+	fsk, err := kry.New(initial, []kry.Transition[int, CustomParam]{
 		{
 			Name: "open",
 			Src:  []int{initial, close},
 			Dst:  open,
-			Enter: func(ctx context.Context, instance kry.InstanceFSM[string, int, CustomParam], param CustomParam) error {
+			Enter: func(ctx context.Context, instance kry.InstanceFSM[int, CustomParam], param CustomParam) error {
 				fmt.Println("Opened with param:", param.Value)
 
 				return nil
@@ -41,13 +41,13 @@ func main() {
 		panic(err)
 	}
 
-	if err := fsk.With().Event(ctx, "open", CustomParam{Value: "example"}); err != nil {
+	if err := fsk.Apply(ctx, open, CustomParam{Value: "example"}); err != nil {
 		panic(err)
 	}
 
 	fmt.Println("Current state:", fsk.Current())
 
-	if err := fsk.Apply(ctx, "close", close); err != nil {
+	if err := fsk.Apply(ctx, close); err != nil {
 		panic(err)
 	}
 

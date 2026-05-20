@@ -10,11 +10,11 @@ import (
 type vizSample1 struct {
 }
 
-func (v *vizSample1) Open(ctx context.Context, instance InstanceFSM[string, int, any], param any) error {
+func (v *vizSample1) Open(ctx context.Context, instance InstanceFSM[int, any], param any) error {
 	return nil
 }
 
-func (v *vizSample1) Close(ctx context.Context, instance InstanceFSM[string, int, any], param any) error {
+func (v *vizSample1) Close(ctx context.Context, instance InstanceFSM[int, any], param any) error {
 	return nil
 }
 
@@ -31,9 +31,9 @@ func Test_visualization_case1(t *testing.T) {
 `
 
 	handlers := &vizSample1{}
-	anonymousFn := func(ctx context.Context, instance InstanceFSM[string, int, any], param any) error { return nil }
+	anonymousFn := func(ctx context.Context, instance InstanceFSM[int, any], param any) error { return nil }
 
-	transitions := []Transition[string, int, any]{
+	transitions := []Transition[int, any]{
 		{
 			Name:  "open",
 			Src:   []int{close},
@@ -82,7 +82,7 @@ subgraph cluster_1 {
 `
 
 	handlers := &vizSample1{}
-	transitions := []Transition[string, int, any]{
+	transitions := []Transition[int, any]{
 		{
 			Name:  "open",
 			Src:   []int{close},

@@ -6,26 +6,24 @@ import (
 	"fmt"
 )
 
-func (fsk *FSM[Action, State, Param]) apply(
+func (fsk *FSM[State, Param]) apply(
 	ctx context.Context,
-	callbacks callbacks[Action, State, Param],
-	action Action,
+	cbs callbacks[State, Param],
 	from, to State,
 	param ...Param,
 ) error {
 	currentHistoryKeeper := fsk.historyKeeper
 
-	currentAction := fsk.currentAction
 	currentState := fsk.currentState
 	previousState := fsk.previousState
 
-	fsk.currentAction = action
+	fsk.currentName = cbs.Name
 	fsk.currentState = to
 	fsk.previousState = currentState
 	fsk.runningApply = true
 
-	expectFailed := fsk.checkCallbacksAgainstExpectHandlers(callbacks)
-	historyKeeper := newHistoryKeeper[Action, State](
+	expectFailed := fsk.checkCallbacksAgainstExpectHandlers(cbs)
+	historyKeeper := newHistoryKeeper[State](
 		fsk.historyKeeper.maxLength,
 		fsk.stackTrace,
 		fsk.cloneHandler,
@@ -40,21 +38,20 @@ func (fsk *FSM[Action, State, Param]) apply(
 		if fsk.ignoreCurrent {
 			fsk.ignoreCurrent = false
 
-			fsk.currentAction = currentAction
 			fsk.currentState = currentState
 			fsk.previousState = previousState
 		}
 	}()
 
 	if err := fsk.applyTransitionByLengthParams(
-		ctx, callbacks, param...,
+		ctx, cbs, param...,
 	); err != nil {
 		ignored := fsk.ignoreCurrent
 		fsk.ignoreCurrent = true
 
 		if intermediateKeeper, errHistory := fsk.intermediateKeeper(
 			historyKeeper,
-			action, from, to,
+			cbs.Name, from, to,
 			errors.Unwrap(err), ignored, expectFailed, param...,
 		); errHistory != nil {
 			err = fmt.Errorf("%w: %w", err, errHistory)
@@ -62,13 +59,13 @@ func (fsk *FSM[Action, State, Param]) apply(
 			historyKeeper = intermediateKeeper
 		}
 
-		return fmt.Errorf("failed to apply (%v) from '%v' to '%v': %w",
-			action, from, to, err)
+		return fmt.Errorf("failed to apply %q from '%v' to '%v': %w",
+			cbs.Name, from, to, err)
 	}
 
 	if intermediateKeeper, errHistory := fsk.intermediateKeeper(
 		historyKeeper,
-		action, from, to,
+		cbs.Name, from, to,
 		nil, fsk.ignoreCurrent, expectFailed, param...,
 	); errHistory != nil {
 		return fmt.Errorf("failed to keep forced history: %w", errHistory)
@@ -79,21 +76,20 @@ func (fsk *FSM[Action, State, Param]) apply(
 	return nil
 }
 
-func (fsk *FSM[Action, State, Param]) applyByExact(ctx context.Context, action Action, newState State, param ...Param) (bool, error) {
-	foundAction := fsk.path[action]
+func (fsk *FSM[State, Param]) applyByExact(ctx context.Context, newState State, param ...Param) (bool, error) {
 	currentState := fsk.currentState
 
-	foundDstState, ok := foundAction[newState]
+	foundDstState, ok := fsk.path[newState]
 	if !ok {
 		return false, nil
 	}
 
-	callbacks, ok := foundDstState[currentState]
+	cbs, ok := foundDstState[currentState]
 	if !ok {
 		return false, nil
 	}
 
-	if err := fsk.apply(ctx, callbacks, action, currentState, newState, param...); err != nil {
+	if err := fsk.apply(ctx, cbs, currentState, newState, param...); err != nil {
 		return false, err
 	}
 
@@ -107,43 +103,32 @@ const (
 	matchDst
 )
 
-func (fsk *FSM[Action, State, Param]) applyByMatchSrcDst(ctx context.Context, matchType matchType, action Action, newState State, param ...Param) (bool, error) {
+func (fsk *FSM[State, Param]) applyByMatchSrcDst(ctx context.Context, mt matchType, newState State, param ...Param) (bool, error) {
 	currentState := fsk.currentState
 	var (
-		foundActionByMatch map[State][]matchState[Action, State, Param]
-		foundStateByMatch  []matchState[Action, State, Param]
-		ok                 bool
+		foundStateByMatch []matchState[State, Param]
+		ok                bool
 	)
 
-	switch matchType {
+	switch mt {
 	case matchSrc:
-		foundActionByMatch, ok = fsk.pathByMatchSrc[action]
-		if !ok {
-			return false, nil
-		}
-
-		foundStateByMatch, ok = foundActionByMatch[newState]
+		foundStateByMatch, ok = fsk.pathByMatchSrc[newState]
 		if !ok {
 			return false, nil
 		}
 
 	case matchDst:
-		foundActionByMatch, ok = fsk.pathByMatchDst[action]
-		if !ok {
-			return false, nil
-		}
-
-		foundStateByMatch, ok = foundActionByMatch[currentState]
+		foundStateByMatch, ok = fsk.pathByMatchDst[currentState]
 		if !ok {
 			return false, nil
 		}
 	}
 
-	for _, matchState := range foundStateByMatch {
-		switch matchType {
+	for _, ms := range foundStateByMatch {
+		switch mt {
 		case matchSrc:
-			if matchState.MatchSrc(currentState) {
-				if err := fsk.apply(ctx, matchState.Callbacks, action, currentState, newState, param...); err != nil {
+			if ms.MatchSrc(currentState) {
+				if err := fsk.apply(ctx, ms.Callbacks, currentState, newState, param...); err != nil {
 					return false, err
 				}
 
@@ -151,8 +136,8 @@ func (fsk *FSM[Action, State, Param]) applyByMatchSrcDst(ctx context.Context, ma
 			}
 
 		case matchDst:
-			if matchState.MatchDst(newState) {
-				if err := fsk.apply(ctx, matchState.Callbacks, action, currentState, newState, param...); err != nil {
+			if ms.MatchDst(newState) {
+				if err := fsk.apply(ctx, ms.Callbacks, currentState, newState, param...); err != nil {
 					return false, err
 				}
 
@@ -164,14 +149,12 @@ func (fsk *FSM[Action, State, Param]) applyByMatchSrcDst(ctx context.Context, ma
 	return false, nil
 }
 
-func (fsk *FSM[Action, State, Param]) applyByMatch(ctx context.Context, action Action, newState State, param ...Param) (bool, error) {
-	foundAction := fsk.pathMatch[action]
+func (fsk *FSM[State, Param]) applyByMatch(ctx context.Context, newState State, param ...Param) (bool, error) {
 	currentState := fsk.currentState
 
-	for _, matchState := range foundAction {
-		if matchState.MatchSrc(currentState) && matchState.MatchDst(newState) {
-			callbacks := matchState.Callbacks
-			if err := fsk.apply(ctx, callbacks, action, currentState, newState, param...); err != nil {
+	for _, ms := range fsk.pathMatch {
+		if ms.MatchSrc(currentState) && ms.MatchDst(newState) {
+			if err := fsk.apply(ctx, ms.Callbacks, currentState, newState, param...); err != nil {
 				return false, err
 			}
 
@@ -182,8 +165,8 @@ func (fsk *FSM[Action, State, Param]) applyByMatch(ctx context.Context, action A
 	return false, nil
 }
 
-func (fsk *FSM[Action, State, Param]) applyTransitionByLengthParams(
-	ctx context.Context, stateTransition callbacks[Action, State, Param], param ...Param,
+func (fsk *FSM[State, Param]) applyTransitionByLengthParams(
+	ctx context.Context, stateTransition callbacks[State, Param], param ...Param,
 ) error {
 	switch len(param) {
 	case 0:
@@ -214,33 +197,12 @@ func (fsk *FSM[Action, State, Param]) applyTransitionByLengthParams(
 	return nil
 }
 
-func (fsk *FSM[Action, State, Param]) Event(
-	ctx context.Context, action Action, param ...Param,
-) error {
-	if !fsk.canTriggerEvents {
-		return fmt.Errorf("event %v: %w", action, ErrNotAllowed)
-	}
-
-	foundEvent, ok := fsk.events[action]
-	if !ok {
-		return fmt.Errorf("event %w: %v", ErrUnknown, action)
-	}
-
-	newState := foundEvent.Dst
-
-	if err := fsk.Apply(ctx, action, newState, param...); err != nil {
-		return fmt.Errorf("failed to apply event %v: %w", action, err)
-	}
-
-	return nil
-}
-
-func (fsk *FSM[Action, State, Param]) generateTransitionMsg(curr, next State) string {
+func (fsk *FSM[State, Param]) generateTransitionMsg(curr, next State) string {
 	return fmt.Sprintf("transition from %v to %v", curr, next)
 }
 
-func (fsk *FSM[Action, State, Param]) Apply(
-	ctx context.Context, action Action, newState State, param ...Param,
+func (fsk *FSM[State, Param]) Apply(
+	ctx context.Context, newState State, param ...Param,
 ) error {
 	currentState := fsk.currentState
 
@@ -253,7 +215,7 @@ func (fsk *FSM[Action, State, Param]) Apply(
 			err := fmt.Errorf("%v", errPanic)
 
 			if errHistory := fsk.historyKeeper.Push(
-				action, currentState, newState,
+				fsk.currentName, currentState, newState,
 				err, defaultSkipStackTrace, fsk.ignoreCurrent, false,
 				param...,
 			); errHistory != nil {
@@ -274,44 +236,28 @@ func (fsk *FSM[Action, State, Param]) Apply(
 
 	ctxWithLoop, err := fsk.checkLoop(ctx, currentState, newState)
 	if err != nil {
-		return fmt.Errorf("failed to apply (%v): %w", action, err)
+		return fmt.Errorf("failed to apply: %w", err)
 	}
 
-	if _, ok := fsk.path[action]; !ok {
-		err = ErrUnknown
-		if errHistory := fsk.historyKeeper.Push(
-			action, currentState, newState,
-			err, defaultSkipStackTrace, fsk.ignoreCurrent, false,
-			param...,
-		); errHistory != nil {
-			err = fmt.Errorf("%v:%w: failed to push history item: %w",
-				fsk.generateTransitionMsg(currentState, newState), err, errHistory,
-			)
-		}
-
-		return fmt.Errorf("%v: action %w: %v",
-			fsk.generateTransitionMsg(currentState, newState), err, action)
-	}
-
-	if applied, err := fsk.applyByExact(ctxWithLoop, action, newState, param...); err != nil {
+	if applied, err := fsk.applyByExact(ctxWithLoop, newState, param...); err != nil {
 		return fmt.Errorf("%v: %w", fsk.generateTransitionMsg(currentState, newState), err)
 	} else if applied {
 		return nil
 	}
 
-	if applied, err := fsk.applyByMatchSrcDst(ctxWithLoop, matchSrc, action, newState, param...); err != nil {
+	if applied, err := fsk.applyByMatchSrcDst(ctxWithLoop, matchSrc, newState, param...); err != nil {
 		return fmt.Errorf("%v: %w", fsk.generateTransitionMsg(currentState, newState), err)
 	} else if applied {
 		return nil
 	}
 
-	if applied, err := fsk.applyByMatchSrcDst(ctxWithLoop, matchDst, action, newState, param...); err != nil {
+	if applied, err := fsk.applyByMatchSrcDst(ctxWithLoop, matchDst, newState, param...); err != nil {
 		return fmt.Errorf("%v: %w", fsk.generateTransitionMsg(currentState, newState), err)
 	} else if applied {
 		return nil
 	}
 
-	if applied, err := fsk.applyByMatch(ctxWithLoop, action, newState, param...); err != nil {
+	if applied, err := fsk.applyByMatch(ctxWithLoop, newState, param...); err != nil {
 		return fmt.Errorf("%v: %w", fsk.generateTransitionMsg(currentState, newState), err)
 	} else if applied {
 		return nil
@@ -319,12 +265,12 @@ func (fsk *FSM[Action, State, Param]) Apply(
 
 	err = ErrNotFound
 	if errHistory := fsk.historyKeeper.Push(
-		action, currentState, newState,
+		"", currentState, newState,
 		err, defaultSkipStackTrace, fsk.ignoreCurrent, false,
 		param...,
 	); errHistory != nil {
 		err = fmt.Errorf("%w: failed to push history item: %w", err, errHistory)
 	}
 
-	return fmt.Errorf("transition (%v) %v: %w", action, fsk.generateTransitionMsg(currentState, newState), err)
+	return fmt.Errorf("%v: %w", fsk.generateTransitionMsg(currentState, newState), err)
 }

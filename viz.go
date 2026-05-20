@@ -28,11 +28,10 @@ func obtainFuncName(fn any) string {
 	return funcEnterName
 }
 
-func VisualizeStateLinks[Action, State comparable, Param any](transitions []Transition[Action, State, Param]) string {
+func VisualizeStateLinks[State comparable, Param any](transitions []Transition[State, Param]) string {
 	result := strings.Builder{}
 
 	for _, transition := range transitions {
-		// Get the function name of transition.Enter using reflect
 		funcEnterNoParamsName := obtainFuncName(transition.EnterNoParams)
 		funcEnterName := obtainFuncName(transition.Enter)
 		funcEnterVariadicName := obtainFuncName(transition.EnterVariadic)
@@ -61,12 +60,12 @@ func VisualizeStateLinks[Action, State comparable, Param any](transitions []Tran
 	return result.String()
 }
 
-func VisualizeActions[Action, State comparable, Param any](transitions []Transition[Action, State, Param]) string {
+func VisualizeActions[State comparable, Param any](transitions []Transition[State, Param]) string {
 	result := strings.Builder{}
-	actionLinks := map[Action][]string{} // action name to list of links
+	actionLinks := map[string][]string{}
 
 	for _, transition := range transitions {
-		links := VisualizeStateLinks([]Transition[Action, State, Param]{transition})
+		links := VisualizeStateLinks([]Transition[State, Param]{transition})
 		actionLinks[transition.Name] = append(actionLinks[transition.Name], links)
 	}
 
