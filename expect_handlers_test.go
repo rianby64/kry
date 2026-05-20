@@ -28,13 +28,13 @@ func Test_option_expect_enter_handler_ok(t *testing.T) {
 			Name:  "open",
 			Src:   []int{close},
 			Dst:   open,
-			Enter: handlerOpen,
+			Enter: OnEnterWith(handlerOpen),
 		},
 		{
 			Name:  "close",
 			Src:   []int{open},
 			Dst:   close,
-			Enter: handlerClose,
+			Enter: OnEnterWith(handlerClose),
 		},
 	}, WithFullHistory[any]())
 
@@ -83,16 +83,16 @@ func Test_option_expect_enter_no_params_handler_ok(t *testing.T) {
 
 	machine, _ := New(close, []Transition[int, any]{
 		{
-			Name:          "open",
-			Src:           []int{close},
-			Dst:           open,
-			EnterNoParams: handlerOpen,
+			Name:  "open",
+			Src:   []int{close},
+			Dst:   open,
+			Enter: OnEnter(handlerOpen),
 		},
 		{
-			Name:          "close",
-			Src:           []int{open},
-			Dst:           close,
-			EnterNoParams: handlerClose,
+			Name:  "close",
+			Src:   []int{open},
+			Dst:   close,
+			Enter: OnEnter(handlerClose),
 		},
 	}, WithFullHistory[any]())
 
@@ -141,16 +141,16 @@ func Test_option_expect_enter_variadic_handler_ok(t *testing.T) {
 
 	machine, _ := New(close, []Transition[int, any]{
 		{
-			Name:          "open",
-			Src:           []int{close},
-			Dst:           open,
-			EnterVariadic: handlerOpen,
+			Name:  "open",
+			Src:   []int{close},
+			Dst:   open,
+			Enter: OnEnterVariadic(handlerOpen),
 		},
 		{
-			Name:          "close",
-			Src:           []int{open},
-			Dst:           close,
-			EnterVariadic: handlerClose,
+			Name:  "close",
+			Src:   []int{open},
+			Dst:   close,
+			Enter: OnEnterVariadic(handlerClose),
 		},
 	}, WithFullHistory[any]())
 
@@ -211,19 +211,19 @@ func Test_option_expect_level2_enter_handler_case1_ok(t *testing.T) {
 			Name:  "open",
 			Src:   []int{close},
 			Dst:   open,
-			Enter: handlerOpen,
+			Enter: OnEnterWith(handlerOpen),
 		},
 		{
 			Name:  "roger",
 			Src:   []int{open, close},
 			Dst:   roger,
-			Enter: handlerRoger,
+			Enter: OnEnterWith(handlerRoger),
 		},
 		{
 			Name:  "close",
 			Src:   []int{open, roger},
 			Dst:   close,
-			Enter: handlerClose,
+			Enter: OnEnterWith(handlerClose),
 		},
 	}
 	machine, _ := New(close, transitions, WithFullHistory[string]())
@@ -298,19 +298,19 @@ func Test_option_expect_level2_enter_handler_case2_ok(t *testing.T) {
 			Name:  "open",
 			Src:   []int{close},
 			Dst:   open,
-			Enter: handlerOpen,
+			Enter: OnEnterWith(handlerOpen),
 		},
 		{
 			Name:  "roger",
 			Src:   []int{open, close},
 			Dst:   roger,
-			Enter: handlerRoger,
+			Enter: OnEnterWith(handlerRoger),
 		},
 		{
 			Name:  "close",
 			Src:   []int{open, roger},
 			Dst:   close,
-			Enter: handlerClose,
+			Enter: OnEnterWith(handlerClose),
 		},
 	}
 	machine, _ := New(close, transitions, WithFullHistory[string]())
@@ -386,19 +386,19 @@ func Test_option_expect_level2_enter_handler_case3_ok(t *testing.T) {
 			Name:  "open",
 			Src:   []int{close},
 			Dst:   open,
-			Enter: handlerOpen,
+			Enter: OnEnterWith(handlerOpen),
 		},
 		{
 			Name:  "roger",
 			Src:   []int{open, close},
 			Dst:   roger,
-			Enter: handlerRoger,
+			Enter: OnEnterWith(handlerRoger),
 		},
 		{
 			Name:  "close",
 			Src:   []int{open, roger},
 			Dst:   close,
-			Enter: handlerClose,
+			Enter: OnEnterWith(handlerClose),
 		},
 	}
 	machine, _ := New(close, transitions, WithFullHistory[string]())
@@ -472,19 +472,19 @@ func Test_option_expect_level2_enter_handler_case4_ok(t *testing.T) {
 			Name:  "open",
 			Src:   []int{close},
 			Dst:   open,
-			Enter: handlerOpen,
+			Enter: OnEnterWith(handlerOpen),
 		},
 		{
 			Name:  "roger",
 			Src:   []int{open, close},
 			Dst:   roger,
-			Enter: handlerRoger,
+			Enter: OnEnterWith(handlerRoger),
 		},
 		{
 			Name:  "close",
 			Src:   []int{open, roger},
 			Dst:   close,
-			Enter: handlerClose,
+			Enter: OnEnterWith(handlerClose),
 		},
 	}
 	machine, _ := New(close, transitions, WithFullHistory[string]())

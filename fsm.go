@@ -42,7 +42,8 @@ type callbacks[State comparable, Param any] struct {
 }
 
 // Transition contains the name label, the source states, the destination state,
-// and optional callbacks that are executed when the transition is triggered.
+// and an optional callback that is executed when the transition is triggered.
+// Declare the callback via OnEnter, OnEnterWith, or OnEnterVariadic.
 type Transition[State comparable, Param any] struct {
 	Name  string
 	Src   []State
@@ -50,9 +51,7 @@ type Transition[State comparable, Param any] struct {
 	Dst   State
 	DstFn func(state State) bool // optional custom matching function for destination states
 
-	EnterNoParams handlerNoParams[State, Param]
-	Enter         handler[State, Param]
-	EnterVariadic handlerVariadic[State, Param]
+	Enter TransitionHandler[State, Param]
 }
 
 type matchState[State comparable, Param any] struct {

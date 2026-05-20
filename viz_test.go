@@ -38,13 +38,13 @@ func Test_visualization_case1(t *testing.T) {
 			Name:  "open",
 			Src:   []int{close},
 			Dst:   open,
-			Enter: handlers.Open,
+			Enter: OnEnterWith(handlers.Open),
 		},
 		{
 			Name:  "close",
 			Src:   []int{open},
 			Dst:   close,
-			Enter: anonymousFn,
+			Enter: OnEnterWith(anonymousFn),
 		},
 	}
 
@@ -87,13 +87,13 @@ subgraph cluster_1 {
 			Name:  "open",
 			Src:   []int{close},
 			Dst:   open,
-			Enter: handlers.Open,
+			Enter: OnEnterWith(handlers.Open),
 		},
 		{
 			Name:  "close",
 			Src:   []int{open},
 			Dst:   close,
-			Enter: handlers.Close,
+			Enter: OnEnterWith(handlers.Close),
 		},
 	}
 

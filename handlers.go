@@ -2,19 +2,21 @@ package kry
 
 import "context"
 
+type arity int
+
 const (
-	arityNoParams = 0
-	arityWith     = 1
-	arityVariadic = 2
+	arityNoParams arity = iota
+	arityWith
+	arityVariadic
 )
 
 // TransitionHandler holds exactly one callback and the arity it was declared for.
 // Construct via OnEnter, OnEnterWith, or OnEnterVariadic — never directly.
 type TransitionHandler[State comparable, Param any] struct {
-	arity     int
-	noParams  func(ctx context.Context, instance InstanceFSM[State, Param]) error
-	with      func(ctx context.Context, instance InstanceFSM[State, Param], param Param) error
-	variadic  func(ctx context.Context, instance InstanceFSM[State, Param], param ...Param) error
+	arity    arity
+	noParams func(ctx context.Context, instance InstanceFSM[State, Param]) error
+	with     func(ctx context.Context, instance InstanceFSM[State, Param], param Param) error
+	variadic func(ctx context.Context, instance InstanceFSM[State, Param], param ...Param) error
 }
 
 // OnEnter declares a callback that fires when Apply is called with zero params.

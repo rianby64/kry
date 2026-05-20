@@ -239,13 +239,13 @@ func Test_history_in_machine_with_error_from_enter(t *testing.T) {
 			Name: "open",
 			Src:  []int{roger},
 			Dst:  open,
-			Enter: func(ctx context.Context, fsm InstanceFSM[int, string], param string) error {
+			Enter: OnEnterWith(func(ctx context.Context, fsm InstanceFSM[int, string], param string) error {
 				if param == "fail" {
 					return ErrNotAllowed
 				}
 
 				return nil
-			},
+			}),
 		},
 		{
 			Name: "close",
@@ -419,9 +419,9 @@ func Test_history_in_machine_apply_within_apply_case1(t *testing.T) {
 				close,
 			},
 			Dst: roger1,
-			Enter: func(ctx context.Context, fsm InstanceFSM[int, string], param string) error {
+			Enter: OnEnterWith(func(ctx context.Context, fsm InstanceFSM[int, string], param string) error {
 				return fsm.Apply(ctx, roger2, param)
-			},
+			}),
 		},
 		{
 			Name: "roger",
@@ -430,9 +430,9 @@ func Test_history_in_machine_apply_within_apply_case1(t *testing.T) {
 				roger1,
 			},
 			Dst: roger2,
-			Enter: func(ctx context.Context, fsm InstanceFSM[int, string], param string) error {
+			Enter: OnEnterWith(func(ctx context.Context, fsm InstanceFSM[int, string], param string) error {
 				return fsm.Apply(ctx, roger3, param)
-			},
+			}),
 		},
 		{
 			Name: "roger",
@@ -442,9 +442,9 @@ func Test_history_in_machine_apply_within_apply_case1(t *testing.T) {
 				roger2,
 			},
 			Dst: roger3,
-			Enter: func(ctx context.Context, fsm InstanceFSM[int, string], param string) error {
+			Enter: OnEnterWith(func(ctx context.Context, fsm InstanceFSM[int, string], param string) error {
 				return fsm.Apply(ctx, roger4, param)
-			},
+			}),
 		},
 		{
 			Name: "roger",
@@ -455,9 +455,9 @@ func Test_history_in_machine_apply_within_apply_case1(t *testing.T) {
 				roger3,
 			},
 			Dst: roger4,
-			Enter: func(ctx context.Context, fsm InstanceFSM[int, string], param string) error {
+			Enter: OnEnterWith(func(ctx context.Context, fsm InstanceFSM[int, string], param string) error {
 				return fsm.Apply(ctx, roger5, param)
-			},
+			}),
 		},
 		{
 			Name: "roger",
@@ -469,17 +469,17 @@ func Test_history_in_machine_apply_within_apply_case1(t *testing.T) {
 				roger4,
 			},
 			Dst: roger5,
-			Enter: func(ctx context.Context, fsm InstanceFSM[int, string], param string) error {
+			Enter: OnEnterWith(func(ctx context.Context, fsm InstanceFSM[int, string], param string) error {
 				return nil
-			},
+			}),
 		},
 		{
 			Name: "open",
 			Src:  []int{roger5},
 			Dst:  open,
-			Enter: func(ctx context.Context, fsm InstanceFSM[int, string], param string) error {
+			Enter: OnEnterWith(func(ctx context.Context, fsm InstanceFSM[int, string], param string) error {
 				return nil
-			},
+			}),
 		},
 		{
 			Name: "close",
@@ -572,11 +572,11 @@ func Test_history_in_machine_apply_within_apply_case2(t *testing.T) {
 				close,
 			},
 			Dst: roger1,
-			Enter: func(ctx context.Context, fsm InstanceFSM[int, string], param string) error {
+			Enter: OnEnterWith(func(ctx context.Context, fsm InstanceFSM[int, string], param string) error {
 				require.Equal(t, close, fsm.Previous())
 
 				return fsm.Apply(ctx, roger2, param)
-			},
+			}),
 		},
 		{
 			Name: "roger",
@@ -585,11 +585,11 @@ func Test_history_in_machine_apply_within_apply_case2(t *testing.T) {
 				roger1,
 			},
 			Dst: roger2,
-			Enter: func(ctx context.Context, fsm InstanceFSM[int, string], param string) error {
+			Enter: OnEnterWith(func(ctx context.Context, fsm InstanceFSM[int, string], param string) error {
 				require.Equal(t, roger1, fsm.Previous())
 
 				return fsm.Apply(ctx, roger3, param)
-			},
+			}),
 		},
 		{
 			Name: "roger",
@@ -599,11 +599,11 @@ func Test_history_in_machine_apply_within_apply_case2(t *testing.T) {
 				roger2,
 			},
 			Dst: roger3,
-			Enter: func(ctx context.Context, fsm InstanceFSM[int, string], param string) error {
+			Enter: OnEnterWith(func(ctx context.Context, fsm InstanceFSM[int, string], param string) error {
 				require.Equal(t, roger2, fsm.Previous())
 
 				return fsm.Apply(ctx, roger4, param)
-			},
+			}),
 		},
 		{
 			Name: "roger",
@@ -614,11 +614,11 @@ func Test_history_in_machine_apply_within_apply_case2(t *testing.T) {
 				roger3,
 			},
 			Dst: roger4,
-			Enter: func(ctx context.Context, fsm InstanceFSM[int, string], param string) error {
+			Enter: OnEnterWith(func(ctx context.Context, fsm InstanceFSM[int, string], param string) error {
 				require.Equal(t, roger3, fsm.Previous())
 
 				return fsm.Apply(ctx, roger6, param) // intentional dead-end: roger6 has no transition from roger4
-			},
+			}),
 		},
 		{
 			Name: "roger",
@@ -630,19 +630,19 @@ func Test_history_in_machine_apply_within_apply_case2(t *testing.T) {
 				roger4,
 			},
 			Dst: roger5,
-			Enter: func(ctx context.Context, fsm InstanceFSM[int, string], param string) error {
+			Enter: OnEnterWith(func(ctx context.Context, fsm InstanceFSM[int, string], param string) error {
 				return nil
-			},
+			}),
 		},
 		{
 			Name: "open",
 			Src:  []int{roger5},
 			Dst:  open,
-			Enter: func(ctx context.Context, fsm InstanceFSM[int, string], param string) error {
+			Enter: OnEnterWith(func(ctx context.Context, fsm InstanceFSM[int, string], param string) error {
 				require.Equal(t, roger5, fsm.Previous())
 
 				return nil
-			},
+			}),
 		},
 		{
 			Name: "close",
@@ -738,9 +738,9 @@ func Test_history_in_machine_apply_within_apply_case3(t *testing.T) {
 			Name: "open",
 			Src:  []int{close},
 			Dst:  open,
-			Enter: func(ctx context.Context, fsm InstanceFSM[int, string], param string) error {
+			Enter: OnEnterWith(func(ctx context.Context, fsm InstanceFSM[int, string], param string) error {
 				return nil
-			},
+			}),
 		},
 		{
 			Name: "close",

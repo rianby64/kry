@@ -6,6 +6,19 @@ var (
 	idMachine uint64
 )
 
+func callbacksFrom[State comparable, Param any](name string, h TransitionHandler[State, Param]) callbacks[State, Param] {
+	cbs := callbacks[State, Param]{Name: name}
+	switch h.arity {
+	case arityWith:
+		cbs.Enter = h.with
+	case arityVariadic:
+		cbs.EnterVariadic = h.variadic
+	default:
+		cbs.EnterNoParams = h.noParams
+	}
+	return cbs
+}
+
 func constructFromTransitions[State comparable, Param any](
 	initialState State,
 	transitions []Transition[State, Param],
@@ -32,12 +45,7 @@ func constructFromTransitions[State comparable, Param any](
 			pathMatch = append(pathMatch, matchState[State, Param]{
 				MatchSrc: transition.SrcFn,
 				MatchDst: transition.DstFn,
-				Callbacks: callbacks[State, Param]{
-					Name:          name,
-					EnterVariadic: transition.EnterVariadic,
-					Enter:         transition.Enter,
-					EnterNoParams: transition.EnterNoParams,
-				},
+				Callbacks: callbacksFrom(name, transition.Enter),
 			})
 
 			continue
@@ -58,13 +66,8 @@ func constructFromTransitions[State comparable, Param any](
 
 				states[src] = struct{}{}
 				pathByMatchDst[src] = append(pathByMatchDst[src], matchState[State, Param]{
-					MatchDst: transition.DstFn,
-					Callbacks: callbacks[State, Param]{
-						Name:          name,
-						EnterVariadic: transition.EnterVariadic,
-						Enter:         transition.Enter,
-						EnterNoParams: transition.EnterNoParams,
-					},
+					MatchDst:  transition.DstFn,
+					Callbacks: callbacksFrom(name, transition.Enter),
 				})
 			}
 		}
@@ -84,12 +87,7 @@ func constructFromTransitions[State comparable, Param any](
 
 			pathByMatchSrc[dst] = append(pathByMatchSrc[dst], matchState[State, Param]{
 				MatchSrc: transition.SrcFn,
-				Callbacks: callbacks[State, Param]{
-					Name:          name,
-					EnterVariadic: transition.EnterVariadic,
-					Enter:         transition.Enter,
-					EnterNoParams: transition.EnterNoParams,
-				},
+				Callbacks: callbacksFrom(name, transition.Enter),
 			})
 		}
 
@@ -103,12 +101,7 @@ func constructFromTransitions[State comparable, Param any](
 			}
 
 			states[src] = struct{}{}
-			path[dst][src] = callbacks[State, Param]{
-				Name:          name,
-				EnterVariadic: transition.EnterVariadic,
-				Enter:         transition.Enter,
-				EnterNoParams: transition.EnterNoParams,
-			}
+			path[dst][src] = callbacksFrom(name, transition.Enter)
 		}
 
 		states[dst] = struct{}{}

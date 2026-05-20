@@ -25,11 +25,11 @@ func main() {
 			Name: "open",
 			Src:  []int{initial, close},
 			Dst:  open,
-			Enter: func(ctx context.Context, instance kry.InstanceFSM[int, CustomParam], param CustomParam) error {
+			Enter: kry.OnEnterWith(func(ctx context.Context, instance kry.InstanceFSM[int, CustomParam], param CustomParam) error {
 				fmt.Println("Opened with param:", param.Value)
 
 				return nil
-			},
+			}),
 		},
 		{
 			Name: "close",

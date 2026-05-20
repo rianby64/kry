@@ -32,24 +32,21 @@ func VisualizeStateLinks[State comparable, Param any](transitions []Transition[S
 	result := strings.Builder{}
 
 	for _, transition := range transitions {
-		funcEnterNoParamsName := obtainFuncName(transition.EnterNoParams)
-		funcEnterName := obtainFuncName(transition.Enter)
-		funcEnterVariadicName := obtainFuncName(transition.EnterVariadic)
+		var fn any
+		switch transition.Enter.arity {
+		case arityWith:
+			fn = transition.Enter.with
+		case arityVariadic:
+			fn = transition.Enter.variadic
+		default:
+			fn = transition.Enter.noParams
+		}
+		funcName := obtainFuncName(fn)
 
 		for _, src := range transition.Src {
 			label := ""
-			if funcEnterName != "" || funcEnterNoParamsName != "" || funcEnterVariadicName != "" {
-				fns := []string{}
-				if funcEnterNoParamsName != "" {
-					fns = append(fns, fmt.Sprintf("enter0=%s", funcEnterNoParamsName))
-				}
-				if funcEnterName != "" {
-					fns = append(fns, fmt.Sprintf("enter=%s", funcEnterName))
-				}
-				if funcEnterVariadicName != "" {
-					fns = append(fns, fmt.Sprintf("enterV=%s", funcEnterVariadicName))
-				}
-				label = fmt.Sprintf(` [ label = "%s" ]`, strings.Join(fns, ", "))
+			if funcName != "" {
+				label = fmt.Sprintf(` [ label = "enter=%s" ]`, funcName)
 			}
 
 			stateTransition := fmt.Sprintf(`%s"%v" -> "%v"%s;%s`, "\t", src, transition.Dst, label, "\n")

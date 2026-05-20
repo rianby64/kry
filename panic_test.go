@@ -26,9 +26,9 @@ func Test_panic_case1(t *testing.T) {
 			Name: "close",
 			Src:  []int{open},
 			Dst:  close,
-			EnterNoParams: func(ctx context.Context, instance InstanceFSM[int, any]) error {
+			Enter: OnEnter(func(ctx context.Context, instance InstanceFSM[int, any]) error {
 				panic("intentional panic")
-			},
+			}),
 		},
 	},
 		WithPanicHandler[any](func(ctx context.Context, panicReason any) {
