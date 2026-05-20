@@ -8,7 +8,7 @@ Generics are the right call. Type-safe actions and states catch whole classes of
 
 ## What I'd push back on
 
-**`Apply` vs `Event` duality.** This is the biggest friction point. Having two methods to trigger a transition, where one silently becomes unavailable depending on how you defined your transitions, is surprising. `Event()` returning `ErrNotAllowed` because somewhere in your transition table two entries share an action name is a runtime discovery, not a design-time one. A user building a machine incrementally will hit this and not immediately know why. The distinction between "you name the destination" and "the machine knows the destination" is real and useful — but the silent disabling is a footgun. See **TODO** for the proposed resolution.
+~~**`Apply` vs `Event` duality.**~~ **Resolved.** `Event()` is removed. `Apply(ctx, dst, params...)` is the only trigger. `Name` is now a plain string label on `Transition`, stored in `callbacks` and `HistoryItem`, used only for history entries and visualization. The FSM signature is `FSM[State, Param]`.
 
 **The three-callback design.** `Enter`, `EnterNoParams`, and `EnterVariadic` all on the same struct, dispatched at call time based on how many params are passed, is unexpected. The fact that you can define all three on one transition and the machine picks which one runs depending on the *caller* — not the transition definition — breaks the principle of least surprise. A user reading the transition definition can't tell which callback will actually fire without also knowing every call site. It also means a subtle mistake (passing zero params when you meant to pass one) silently calls a different callback. See **TODO** for the proposed resolution.
 
@@ -27,20 +27,6 @@ Some methods bend the rules of the FSM intentionally. They are not design flaws 
 The core model is solid. The multi-FSM loop detection via context is genuinely clever. The rough edges are mostly in the `Transition` struct design and the `Apply`/`Event` split — both fixable without rethinking the whole thing.
 
 ## TODO
-
-**Remove `Name` from transition matching; make it a label only.**
-
-The root cause of the `Apply`/`Event` duality is that `Name` (Action) tries to play two roles at once: the classical FSM input/event that drives the machine, and a grouping label for related transitions. When the same `Name` appears with different destinations the machine becomes non-deterministic, `Event()` is silently disabled, and the caller is forced to specify the destination in `Apply` — which means `Name` was never truly driving the selection to begin with.
-
-The resolution is to commit fully to a **destination-driven** model:
-
-- Remove `Name` from the matching logic entirely. The transition is identified solely by the `(current state, destination state)` pair.
-- `Apply` becomes `Apply(ctx, Dst, params...)` — the caller says where they want to go, the machine validates it is legal from the current state and executes the callbacks.
-- `Event()` disappears — there is no longer a duality, only `Apply`.
-- `Name` is demoted to a plain `string` label on `Transition`, used only for history entries and visualization. It is no longer a generic type parameter.
-- The FSM signature simplifies from `FSM[Action, State, Param]` to `FSM[State, Param]`.
-- Construction must reject two transitions that share the same `(Src, Dst)` pair, since without `Name` there is no way to disambiguate between them. This is not a loss — it is a nudge toward better modelling (different behaviour from the same source to the same destination should be expressed through different destination states or through params).
-
 
 **Replace the three-callback fields with a single typed `Enter` field.**
 

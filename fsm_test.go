@@ -37,10 +37,10 @@ func Test_previous_unchanged_after_failed_apply(t *testing.T) {
 		{Name: "close", Src: []int{open}, Dst: close},
 	})
 
-	require.NoError(t, machine.Apply(context.TODO(), open))
+	require.NoError(t, machine.Apply(t.Context(), open))
 	require.Equal(t, close, machine.Previous())
 
-	require.ErrorIs(t, machine.Apply(context.TODO(), other), ErrNotFound)
+	require.ErrorIs(t, machine.Apply(t.Context(), other), ErrNotFound)
 	require.Equal(t, close, machine.Previous())
 }
 
@@ -77,7 +77,7 @@ func Test_set_transitions_string_int_ok(t *testing.T) {
 		{Name: "close", Src: []int{open}, Dst: close},
 	})
 
-	require.NoError(t, machine.Apply(context.TODO(), open))
+	require.NoError(t, machine.Apply(t.Context(), open))
 	require.Equal(t, open, machine.Current())
 }
 
@@ -93,7 +93,7 @@ func Test_incorrect_event(t *testing.T) {
 	})
 
 	// From close, there is no close→close transition
-	require.ErrorIs(t, machine.Apply(context.TODO(), close), ErrNotFound)
+	require.ErrorIs(t, machine.Apply(t.Context(), close), ErrNotFound)
 	require.Equal(t, close, machine.Current())
 }
 
@@ -109,7 +109,7 @@ func Test_incorrect_state(t *testing.T) {
 		{Name: "close", Src: []int{open}, Dst: close},
 	})
 
-	require.ErrorIs(t, machine.Apply(context.TODO(), open), ErrNotFound)
+	require.ErrorIs(t, machine.Apply(t.Context(), open), ErrNotFound)
 	require.Equal(t, close, machine.Current())
 }
 
@@ -152,7 +152,7 @@ func Test_execute_Enter_one_time_one_parameter(t *testing.T) {
 		},
 	)
 
-	require.Nil(t, machine.Apply(context.TODO(), open, Param{Value: "test"}))
+	require.Nil(t, machine.Apply(t.Context(), open, Param{Value: "test"}))
 	require.Equal(t, open, machine.Current())
 	require.True(t, calledEnter)
 }
@@ -188,13 +188,13 @@ func Test_execute_event_case2(t *testing.T) {
 		},
 	)
 
-	require.Nil(t, machine.Apply(context.TODO(), open))
+	require.Nil(t, machine.Apply(t.Context(), open))
 	require.Equal(t, open, machine.Current())
 
-	require.Nil(t, machine.Apply(context.TODO(), open))
+	require.Nil(t, machine.Apply(t.Context(), open))
 	require.Equal(t, open, machine.Current())
 
-	require.Nil(t, machine.Apply(context.TODO(), close))
+	require.Nil(t, machine.Apply(t.Context(), close))
 	require.Equal(t, close, machine.Current())
 
 	require.Equal(t, 2, enterOpenCalledTimes)
@@ -233,13 +233,13 @@ func Test_failed_enter_OK(t *testing.T) {
 		},
 	)
 
-	require.Nil(t, machine.Apply(context.TODO(), open))
+	require.Nil(t, machine.Apply(t.Context(), open))
 	require.Equal(t, open, machine.Current())
 
-	require.Nil(t, machine.Apply(context.TODO(), open))
+	require.Nil(t, machine.Apply(t.Context(), open))
 	require.Equal(t, open, machine.Current())
 
-	require.ErrorIs(t, machine.Apply(context.TODO(), close), expectedError)
+	require.ErrorIs(t, machine.Apply(t.Context(), close), expectedError)
 	require.Equal(t, open, machine.Current())
 
 	require.Equal(t, 2, enterOpenCalledTimes)
@@ -307,27 +307,27 @@ func Test_execute_different_variadics(t *testing.T) {
 		},
 	)
 
-	require.Nil(t, machine.Apply(context.TODO(), open))
+	require.Nil(t, machine.Apply(t.Context(), open))
 	require.Equal(t, open, machine.Current())
 	require.Equal(t, 1, calledOpenEnterNoParams)
 
-	require.Nil(t, machine.Apply(context.TODO(), close))
+	require.Nil(t, machine.Apply(t.Context(), close))
 	require.Equal(t, close, machine.Current())
 	require.Equal(t, 1, calledCloseEnterNoParams)
 
-	require.Nil(t, machine.Apply(context.TODO(), open, 1))
+	require.Nil(t, machine.Apply(t.Context(), open, 1))
 	require.Equal(t, open, machine.Current())
 	require.Equal(t, 1, calledOpenEnter)
 
-	require.Nil(t, machine.Apply(context.TODO(), close, 2))
+	require.Nil(t, machine.Apply(t.Context(), close, 2))
 	require.Equal(t, close, machine.Current())
 	require.Equal(t, 1, calledCloseEnter)
 
-	require.Nil(t, machine.Apply(context.TODO(), open, 3, 4))
+	require.Nil(t, machine.Apply(t.Context(), open, 3, 4))
 	require.Equal(t, open, machine.Current())
 	require.Equal(t, 1, calledOpenEnterVariadic)
 
-	require.Nil(t, machine.Apply(context.TODO(), close, 5, 6))
+	require.Nil(t, machine.Apply(t.Context(), close, 5, 6))
 	require.Equal(t, close, machine.Current())
 	require.Equal(t, 1, calledCloseEnterVariadic)
 }
@@ -343,7 +343,7 @@ func Test_set_state_undefined_case1(t *testing.T) {
 		{Name: "close", Src: []int{open}, Dst: close},
 	})
 
-	err := machine.Apply(context.TODO(), open)
+	err := machine.Apply(t.Context(), open)
 	require.NoError(t, err)
 	require.Equal(t, open, machine.Current())
 }
@@ -359,7 +359,7 @@ func Test_set_state_undefined_case2(t *testing.T) {
 		{Name: "close", Src: []int{open}, Dst: close},
 	})
 
-	require.NoError(t, machine.Apply(context.TODO(), open, 20))
+	require.NoError(t, machine.Apply(t.Context(), open, 20))
 	require.Equal(t, open, machine.Current())
 }
 
@@ -382,7 +382,7 @@ func Test_set_state_undefined_case3(t *testing.T) {
 		},
 	})
 
-	require.NoError(t, machine.Apply(context.TODO(), open, 1))
+	require.NoError(t, machine.Apply(t.Context(), open, 1))
 	require.Equal(t, open, machine.Current())
 }
 
@@ -424,18 +424,18 @@ func Test_set_transitions_retrigger_ok(t *testing.T) {
 	})
 
 	// From close, the only valid destination is roger; open has no close→open transition
-	require.ErrorIs(t, machine.Apply(context.TODO(), open), ErrNotFound)
+	require.ErrorIs(t, machine.Apply(t.Context(), open), ErrNotFound)
 
-	require.NoError(t, machine.Apply(context.TODO(), roger))
+	require.NoError(t, machine.Apply(t.Context(), roger))
 	require.Equal(t, roger, machine.Current())
 
-	require.NoError(t, machine.Apply(context.TODO(), open))
+	require.NoError(t, machine.Apply(t.Context(), open))
 	require.Equal(t, open, machine.Current())
 
-	require.NoError(t, machine.Apply(context.TODO(), roger))
+	require.NoError(t, machine.Apply(t.Context(), roger))
 	require.Equal(t, roger, machine.Current())
 
-	require.NoError(t, machine.Apply(context.TODO(), close))
+	require.NoError(t, machine.Apply(t.Context(), close))
 	require.Equal(t, close, machine.Current())
 
 	require.Equal(t, 2, calledOpen)
@@ -484,10 +484,10 @@ func Test_set_event_ok(t *testing.T) {
 	require.NotNil(t, machine)
 	require.NoError(t, err)
 
-	require.NoError(t, machine.Apply(context.TODO(), open))
+	require.NoError(t, machine.Apply(t.Context(), open))
 	require.Equal(t, open, machine.Current())
 
-	require.NoError(t, machine.Apply(context.TODO(), close))
+	require.NoError(t, machine.Apply(t.Context(), close))
 	require.Equal(t, close, machine.Current())
 }
 
@@ -514,14 +514,14 @@ func Test_transite_incorrect_event_ok(t *testing.T) {
 	require.NotNil(t, machine)
 	require.NoError(t, err)
 
-	require.NoError(t, machine.Apply(context.TODO(), open))
+	require.NoError(t, machine.Apply(t.Context(), open))
 	require.Equal(t, open, machine.Current())
 
 	// From open, there is no open→open transition
-	require.ErrorIs(t, machine.Apply(context.TODO(), open), ErrNotFound)
+	require.ErrorIs(t, machine.Apply(t.Context(), open), ErrNotFound)
 	require.Equal(t, open, machine.Current())
 
-	require.ErrorIs(t, machine.Apply(context.TODO(), close), errExpected)
+	require.ErrorIs(t, machine.Apply(t.Context(), close), errExpected)
 	require.Equal(t, open, machine.Current())
 }
 
@@ -572,7 +572,7 @@ func Test_loop_case_1(t *testing.T) {
 		},
 	})
 
-	require.NoError(t, machine.Apply(context.TODO(), open))
+	require.NoError(t, machine.Apply(t.Context(), open))
 	require.Equal(t, roger, machine.Current())
 	require.Equal(t, 1, calledOpen)
 	require.Equal(t, 1, calledRoger)
@@ -630,7 +630,7 @@ func Test_loop_case_infinity_break(t *testing.T) {
 		},
 	}, WithFullHistory[any]())
 
-	require.ErrorIs(t, machine.Apply(context.TODO(), open), ErrLoopFound)
+	require.ErrorIs(t, machine.Apply(t.Context(), open), ErrLoopFound)
 	require.Equal(t, close, machine.Current())
 	require.Equal(t, 1, calledOpen)
 	require.Equal(t, 1, calledRoger)
@@ -719,7 +719,7 @@ func Test_loop_case_infinity_break_two_machines(t *testing.T) {
 		},
 	})
 
-	require.NoError(t, machine1.Apply(context.TODO(), open))
+	require.NoError(t, machine1.Apply(t.Context(), open))
 	require.Equal(t, open, machine1.Current())
 	require.Equal(t, open, machine2.Current())
 	require.Equal(t, 1, calledOpen1)
@@ -741,7 +741,7 @@ func Test_set_transitions_match_fn(t *testing.T) {
 	calledRoger1 := false
 	calledRogerMatch := false
 
-	ctx := context.TODO()
+	ctx := t.Context()
 	transitions := []Transition[int, any]{
 		{
 			Name: "open-slightly",
@@ -827,7 +827,7 @@ func Test_set_transitions_match_fn_error(t *testing.T) {
 	)
 
 	expectedError := fmt.Errorf("expected error")
-	ctx := context.TODO()
+	ctx := t.Context()
 	transitions := []Transition[int, any]{
 		{
 			Name: "open-slightly",
@@ -894,7 +894,7 @@ func Test_ignore_transition_ok(t *testing.T) {
 	require.NotNil(t, machine)
 	require.NoError(t, err)
 
-	require.NoError(t, machine.Apply(context.TODO(), open))
+	require.NoError(t, machine.Apply(t.Context(), open))
 	require.Equal(t, close, machine.Current())
 
 	history := machine.History()
@@ -921,10 +921,10 @@ func Test_ignore_transition_outside_skip(t *testing.T) {
 
 	machine.IgnoreCurrentTransition()
 
-	require.NoError(t, machine.Apply(context.TODO(), open))
+	require.NoError(t, machine.Apply(t.Context(), open))
 	require.Equal(t, open, machine.Current())
 
-	require.NoError(t, machine.Apply(context.TODO(), close))
+	require.NoError(t, machine.Apply(t.Context(), close))
 	require.Equal(t, close, machine.Current())
 }
 
@@ -950,10 +950,10 @@ func Test_force_state(t *testing.T) {
 	require.NotNil(t, machine)
 	require.NoError(t, err)
 
-	require.NoError(t, machine.Apply(context.TODO(), open))
+	require.NoError(t, machine.Apply(t.Context(), open))
 	require.Equal(t, roger, machine.Current())
 
-	require.NoError(t, machine.Apply(context.TODO(), close))
+	require.NoError(t, machine.Apply(t.Context(), close))
 	require.Equal(t, close, machine.Current())
 }
 
@@ -989,22 +989,22 @@ func Test_transit_match_dst_case1(t *testing.T) {
 		},
 	})
 
-	require.NoError(t, machine.Apply(context.TODO(), open))
+	require.NoError(t, machine.Apply(t.Context(), open))
 	require.Equal(t, open, machine.Current())
 
-	require.NoError(t, machine.Apply(context.TODO(), roger3))
+	require.NoError(t, machine.Apply(t.Context(), roger3))
 	require.Equal(t, roger3, machine.Current())
 
-	require.NoError(t, machine.Apply(context.TODO(), close))
+	require.NoError(t, machine.Apply(t.Context(), close))
 	require.Equal(t, close, machine.Current())
 
-	require.NoError(t, machine.Apply(context.TODO(), open))
+	require.NoError(t, machine.Apply(t.Context(), open))
 	require.Equal(t, open, machine.Current())
 
-	require.NoError(t, machine.Apply(context.TODO(), roger4))
+	require.NoError(t, machine.Apply(t.Context(), roger4))
 	require.Equal(t, roger4, machine.Current())
 
-	require.NoError(t, machine.Apply(context.TODO(), close))
+	require.NoError(t, machine.Apply(t.Context(), close))
 	require.Equal(t, close, machine.Current())
 }
 
@@ -1049,24 +1049,24 @@ func Test_transit_match_dst_case2(t *testing.T) {
 		},
 	})
 
-	require.NoError(t, machine.Apply(context.TODO(), open))
+	require.NoError(t, machine.Apply(t.Context(), open))
 	require.Equal(t, open, machine.Current())
 
-	require.NoError(t, machine.Apply(context.TODO(), roger3))
+	require.NoError(t, machine.Apply(t.Context(), roger3))
 	require.Equal(t, roger3, machine.Current())
 
-	require.NoError(t, machine.Apply(context.TODO(), roger1))
+	require.NoError(t, machine.Apply(t.Context(), roger1))
 	require.Equal(t, roger1, machine.Current())
 
-	require.NoError(t, machine.Apply(context.TODO(), close))
+	require.NoError(t, machine.Apply(t.Context(), close))
 	require.Equal(t, close, machine.Current())
 
-	require.NoError(t, machine.Apply(context.TODO(), open))
+	require.NoError(t, machine.Apply(t.Context(), open))
 	require.Equal(t, open, machine.Current())
 
-	require.NoError(t, machine.Apply(context.TODO(), roger4))
+	require.NoError(t, machine.Apply(t.Context(), roger4))
 	require.Equal(t, roger4, machine.Current())
 
-	require.NoError(t, machine.Apply(context.TODO(), close))
+	require.NoError(t, machine.Apply(t.Context(), close))
 	require.Equal(t, close, machine.Current())
 }

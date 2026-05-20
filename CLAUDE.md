@@ -9,7 +9,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 go test ./...
 
 # Run a single test
-go test -run Test_set_transitions_string_int_ok ./...
+go test -run Test_set_event_ok ./...
 
 # Run tests with verbose output
 go test -v ./...
@@ -20,15 +20,22 @@ go build ./...
 
 ## Status
 
-This repository is mid-transition from v1 to v2. The current code is v1. The design decisions for v2 are recorded in `critics-weak-points.md`. The remainder of this file describes the **v2 target architecture**.
+This repository is mid-transition from v1 to v2. The design decisions for v2 are recorded in `critics-weak-points.md`. The remainder of this file describes the **v2 target architecture**.
+
+**Completed so far:**
+- `Action` type parameter removed. Current signature: `FSM[State comparable, Param any]`.
+- `Event()` removed. `Apply(ctx, dst, params...)` is the only trigger.
+- `Name` demoted to a plain `string` label stored in `callbacks` and `HistoryItem`.
+- `HistoryItem.Name string` replaces the former `Action` field.
+
+**Still pending:** builder API (`Build/GoingTo/FnGoingTo/From/FnFrom/.On`), single-field `Enter TransitionHandler` with arity constructors, `ForceState` history recording (`Forced`/`ForcedTo`/`HasViolation`).
 
 ## v2 Architecture
 
-`kry` is a generic finite state machine (FSM) library. The v2 type signature drops `Action` as a type parameter — `Name` is demoted from a generic key to a plain string label used only for history and visualization.
+`kry` is a generic finite state machine (FSM) library. Current signature:
 
 ```
-v1: FSM[Action, State comparable, Param any]
-v2: FSM[State comparable, Param any]
+FSM[State comparable, Param any]
 ```
 
 ### Construction
@@ -112,13 +119,14 @@ func ForStop(p float64) CarParam        { return CarParam{Pressure: &p} }
 
 This is a language constraint, not a design flaw. The union struct keeps the machine's input vocabulary explicit and makes history uniform.
 
-### Core files (v1, pending rewrite)
+### Core files
 
-- **`fsm.go`** — `FSM[A,S,P]`, `InstanceFSM` interface, `Transition` struct, `New()` constructor.
+- **`fsm.go`** — `FSM[State, Param]`, `InstanceFSM` interface, `Transition` struct, `New()` constructor.
 - **`construct_transitions.go`** — Parses transitions into four internal maps (`path`, `pathByMatchSrc`, `pathByMatchDst`, `pathMatch`). Called once at construction; immutable after.
-- **`apply.go`** — `Apply()` and `Event()`. Resolution priority: exact → SrcFn → DstFn → both-Fn.
+- **`apply.go`** — `Apply(ctx, dst, params...)`. Resolution priority: exact → SrcFn → DstFn → both-Fn. No `Event()`.
 - **`check_loop.go`** — Loop detection in `context.Context`, keyed by FSM `uint64` ID.
 - **`options.go`** — Functional options and `Expect*` decorator functions.
-- **`history.go`** — `HistoryItem` and `historyKeeper` (singly-linked list, optional size cap).
+- **`history.go`** — `HistoryItem[State, Param]` with `Name string` field, and `historyKeeper` (singly-linked list, optional size cap).
 - **`expect_handlers.go`** — Compares expected vs. actual callback function pointers.
+- **`handlers.go`** — `OnEnter`, `OnEnterWith`, `OnEnterVariadic` constructors (v2 builder target).
 - **`viz.go`** — Graphviz DOT output via `VisualizeActions` / `VisualizeStateLinks`.

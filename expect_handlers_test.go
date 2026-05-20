@@ -54,12 +54,12 @@ func Test_option_expect_enter_handler_ok(t *testing.T) {
 
 	require.NoError(t, machine.
 		With(ExpectEnter(handlerClose)).
-		Apply(context.TODO(), open))
+		Apply(t.Context(), open))
 	require.Equal(t, open, machine.Current())
 
 	require.NoError(t, machine.
 		With(ExpectEnter(handlerClose)).
-		Apply(context.TODO(), close))
+		Apply(t.Context(), close))
 	require.Equal(t, close, machine.Current())
 
 	require.Equal(t, expectedHistory, machine.History())
@@ -112,12 +112,12 @@ func Test_option_expect_enter_no_params_handler_ok(t *testing.T) {
 
 	require.NoError(t, machine.
 		With(ExpectEnterNoParams(handlerClose)).
-		Apply(context.TODO(), open))
+		Apply(t.Context(), open))
 	require.Equal(t, open, machine.Current())
 
 	require.NoError(t, machine.
 		With(ExpectEnterNoParams(handlerClose)).
-		Apply(context.TODO(), close))
+		Apply(t.Context(), close))
 	require.Equal(t, close, machine.Current())
 
 	require.Equal(t, expectedHistory, machine.History())
@@ -170,12 +170,12 @@ func Test_option_expect_enter_variadic_handler_ok(t *testing.T) {
 
 	require.NoError(t, machine.
 		With(ExpectEnterVariadic(handlerClose)).
-		Apply(context.TODO(), open))
+		Apply(t.Context(), open))
 	require.Equal(t, open, machine.Current())
 
 	require.NoError(t, machine.
 		With(ExpectEnterVariadic(handlerClose)).
-		Apply(context.TODO(), close))
+		Apply(t.Context(), close))
 	require.Equal(t, close, machine.Current())
 
 	require.Equal(t, expectedHistory, machine.History())
@@ -250,11 +250,11 @@ func Test_option_expect_level2_enter_handler_case1_ok(t *testing.T) {
 
 	require.NoError(t, machine.
 		With(ExpectEnter(handlerClose)).
-		Apply(context.TODO(), open, "goto-roger"))
+		Apply(t.Context(), open, "goto-roger"))
 	require.Equal(t, roger, machine.Current())
 
 	require.NoError(t, machine.
-		Apply(context.TODO(), close))
+		Apply(t.Context(), close))
 	require.Equal(t, close, machine.Current())
 
 	require.Equal(t, expectedHistory, machine.History())
@@ -338,11 +338,11 @@ func Test_option_expect_level2_enter_handler_case2_ok(t *testing.T) {
 
 	require.NoError(t, machine.
 		With(ExpectEnter(handlerClose)).
-		Apply(context.TODO(), open, "goto-roger"))
+		Apply(t.Context(), open, "goto-roger"))
 	require.Equal(t, roger, machine.Current())
 
 	require.NoError(t, machine.
-		Apply(context.TODO(), close))
+		Apply(t.Context(), close))
 	require.Equal(t, close, machine.Current())
 
 	require.Equal(t, expectedHistory, machine.History())
@@ -425,11 +425,11 @@ func Test_option_expect_level2_enter_handler_case3_ok(t *testing.T) {
 
 	require.NoError(t, machine.
 		With(ExpectEnter(handlerOpen)).
-		Apply(context.TODO(), open, "goto-roger"))
+		Apply(t.Context(), open, "goto-roger"))
 	require.Equal(t, roger, machine.Current())
 
 	require.NoError(t, machine.
-		Apply(context.TODO(), close))
+		Apply(t.Context(), close))
 	require.Equal(t, close, machine.Current())
 
 	require.Equal(t, expectedHistory, machine.History())
@@ -510,11 +510,11 @@ func Test_option_expect_level2_enter_handler_case4_ok(t *testing.T) {
 
 	require.NoError(t, machine.
 		With(ExpectEnter(handlerOpen)).
-		Apply(context.TODO(), open, "goto-roger"))
+		Apply(t.Context(), open, "goto-roger"))
 	require.Equal(t, roger, machine.Current())
 
 	require.NoError(t, machine.
-		Apply(context.TODO(), close))
+		Apply(t.Context(), close))
 	require.Equal(t, close, machine.Current())
 
 	require.Equal(t, expectedHistory, machine.History())

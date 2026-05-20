@@ -168,10 +168,10 @@ func Test_history_in_machine(t *testing.T) {
 		{Name: "close", Src: []int{open}, Dst: close},
 	}, WithFullHistory[any]())
 
-	require.NoError(t, machine.Apply(context.TODO(), open))
+	require.NoError(t, machine.Apply(t.Context(), open))
 	require.Equal(t, open, machine.Current())
 
-	require.NoError(t, machine.Apply(context.TODO(), close))
+	require.NoError(t, machine.Apply(t.Context(), close))
 	require.Equal(t, close, machine.Current())
 
 	expectedHistory := []HistoryItem[int, any]{
@@ -204,10 +204,10 @@ func Test_history_in_machine_limited(t *testing.T) {
 		{Name: "close", Src: []int{open}, Dst: close},
 	}, WithHistory[any](1))
 
-	require.NoError(t, machine.Apply(context.TODO(), open))
+	require.NoError(t, machine.Apply(t.Context(), open))
 	require.Equal(t, open, machine.Current())
 
-	require.NoError(t, machine.Apply(context.TODO(), close))
+	require.NoError(t, machine.Apply(t.Context(), close))
 	require.Equal(t, close, machine.Current())
 
 	expectedHistory := []HistoryItem[int, any]{
@@ -254,16 +254,16 @@ func Test_history_in_machine_with_error_from_enter(t *testing.T) {
 		},
 	}, WithFullHistory[string]())
 
-	require.NoError(t, machine.Apply(context.TODO(), roger))
+	require.NoError(t, machine.Apply(t.Context(), roger))
 	require.Equal(t, roger, machine.Current())
 
-	require.ErrorIs(t, machine.Apply(context.TODO(), open, "fail"), ErrNotAllowed)
+	require.ErrorIs(t, machine.Apply(t.Context(), open, "fail"), ErrNotAllowed)
 	require.Equal(t, roger, machine.Current())
 
-	require.NoError(t, machine.Apply(context.TODO(), open))
+	require.NoError(t, machine.Apply(t.Context(), open))
 	require.Equal(t, open, machine.Current())
 
-	require.NoError(t, machine.Apply(context.TODO(), close))
+	require.NoError(t, machine.Apply(t.Context(), close))
 	require.Equal(t, close, machine.Current())
 
 	expectedHistory := []HistoryItem[int, string]{
@@ -324,17 +324,17 @@ func Test_history_in_machine_with_incorrect_transition_error(t *testing.T) {
 		},
 	}, WithFullHistory[string]())
 
-	require.NoError(t, machine.Apply(context.TODO(), roger))
+	require.NoError(t, machine.Apply(t.Context(), roger))
 	require.Equal(t, roger, machine.Current())
 
-	require.NoError(t, machine.Apply(context.TODO(), open))
+	require.NoError(t, machine.Apply(t.Context(), open))
 	require.Equal(t, open, machine.Current())
 
 	// No open→roger transition; Name will be empty in history
-	require.ErrorIs(t, machine.Apply(context.TODO(), roger), ErrNotFound)
+	require.ErrorIs(t, machine.Apply(t.Context(), roger), ErrNotFound)
 	require.Equal(t, open, machine.Current())
 
-	require.NoError(t, machine.Apply(context.TODO(), close))
+	require.NoError(t, machine.Apply(t.Context(), close))
 	require.Equal(t, close, machine.Current())
 
 	expectedHistory := []HistoryItem[int, string]{
@@ -490,13 +490,13 @@ func Test_history_in_machine_apply_within_apply_case1(t *testing.T) {
 
 	const emptyString = ""
 
-	require.NoError(t, machine.Apply(context.TODO(), roger1, emptyString))
+	require.NoError(t, machine.Apply(t.Context(), roger1, emptyString))
 	require.Equal(t, roger5, machine.Current())
 
-	require.NoError(t, machine.Apply(context.TODO(), open, emptyString))
+	require.NoError(t, machine.Apply(t.Context(), open, emptyString))
 	require.Equal(t, open, machine.Current())
 
-	require.NoError(t, machine.Apply(context.TODO(), close, emptyString))
+	require.NoError(t, machine.Apply(t.Context(), close, emptyString))
 	require.Equal(t, close, machine.Current())
 
 	expectedHistory := []HistoryItem[int, string]{
@@ -653,14 +653,14 @@ func Test_history_in_machine_apply_within_apply_case2(t *testing.T) {
 
 	const emptyString = ""
 
-	require.NoError(t, machine.Apply(context.TODO(), close, emptyString))
+	require.NoError(t, machine.Apply(t.Context(), close, emptyString))
 	require.Equal(t, close, machine.Current())
 
-	require.ErrorIs(t, machine.Apply(context.TODO(), roger1, emptyString), ErrNotFound)
+	require.ErrorIs(t, machine.Apply(t.Context(), roger1, emptyString), ErrNotFound)
 	require.Equal(t, close, machine.Current())
 	require.Equal(t, open, machine.Previous())
 
-	require.NoError(t, machine.Apply(context.TODO(), roger5, emptyString))
+	require.NoError(t, machine.Apply(t.Context(), roger5, emptyString))
 	require.Equal(t, roger5, machine.Current())
 
 	expectedHistory := []HistoryItem[int, string]{
@@ -751,14 +751,14 @@ func Test_history_in_machine_apply_within_apply_case3(t *testing.T) {
 
 	const emptyString = ""
 
-	require.NoError(t, machine.Apply(context.TODO(), close, emptyString))
+	require.NoError(t, machine.Apply(t.Context(), close, emptyString))
 	require.Equal(t, close, machine.Current())
 
 	// No close→close transition; Name will be empty in history
-	require.ErrorIs(t, machine.Apply(context.TODO(), close, emptyString), ErrNotFound)
+	require.ErrorIs(t, machine.Apply(t.Context(), close, emptyString), ErrNotFound)
 	require.Equal(t, close, machine.Current())
 
-	require.NoError(t, machine.Apply(context.TODO(), open, emptyString))
+	require.NoError(t, machine.Apply(t.Context(), open, emptyString))
 	require.Equal(t, open, machine.Current())
 
 	expectedHistory := []HistoryItem[int, string]{
