@@ -1092,3 +1092,75 @@ func Test_transit_match_dst_case2(t *testing.T) {
 	require.NoError(t, machine.Apply(t.Context(), close))
 	require.Equal(t, close, machine.Current())
 }
+
+func Test_strict_arity_OnEnterWith(t *testing.T) {
+	const (
+		moving int = iota + 1
+		stopped
+	)
+
+	var called bool
+
+	machine, _ := New(moving, []Transition[int, int]{
+		{
+			Name: "stop",
+			Src:  []int{moving},
+			Dst:  stopped,
+			Enter: OnEnterWith(func(ctx context.Context, instance InstanceFSM[int, int], param int) error {
+				called = true
+				return nil
+			}),
+		},
+	})
+
+	// 0 params: OnEnterWith requires exactly 1 — should error, state must not change
+	require.ErrorIs(t, machine.Apply(t.Context(), stopped), ErrNotAllowed)
+	require.False(t, called)
+	require.Equal(t, moving, machine.Current())
+
+	// 2 params: OnEnterWith requires exactly 1 — should error, state must not change
+	require.ErrorIs(t, machine.Apply(t.Context(), stopped, 1, 2), ErrNotAllowed)
+	require.False(t, called)
+	require.Equal(t, moving, machine.Current())
+
+	// 1 param: correct arity — should succeed and fire the callback
+	require.NoError(t, machine.Apply(t.Context(), stopped, 42))
+	require.True(t, called)
+	require.Equal(t, stopped, machine.Current())
+}
+
+func Test_strict_arity_OnEnter(t *testing.T) {
+	const (
+		moving int = iota + 1
+		stopped
+	)
+
+	var called bool
+
+	machine, _ := New(moving, []Transition[int, int]{
+		{
+			Name: "stop",
+			Src:  []int{moving},
+			Dst:  stopped,
+			Enter: OnEnter(func(ctx context.Context, instance InstanceFSM[int, int]) error {
+				called = true
+				return nil
+			}),
+		},
+	})
+
+	// 1 param: OnEnter requires exactly 0 — should error, state must not change
+	require.ErrorIs(t, machine.Apply(t.Context(), stopped, 1), ErrNotAllowed)
+	require.False(t, called)
+	require.Equal(t, moving, machine.Current())
+
+	// 2 params: OnEnter requires exactly 0 — should error, state must not change
+	require.ErrorIs(t, machine.Apply(t.Context(), stopped, 1, 2), ErrNotAllowed)
+	require.False(t, called)
+	require.Equal(t, moving, machine.Current())
+
+	// 0 params: correct arity — should succeed and fire the callback
+	require.NoError(t, machine.Apply(t.Context(), stopped))
+	require.True(t, called)
+	require.Equal(t, stopped, machine.Current())
+}
