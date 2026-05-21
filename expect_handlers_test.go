@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func Test_option_expect_enter_handler_ok(t *testing.T) {
+func Test_option_expect_enter_handler_failed_ok(t *testing.T) {
 	const (
 		close int = iota + 1
 		open
@@ -65,23 +65,23 @@ func Test_option_expect_enter_handler_ok(t *testing.T) {
 	require.Equal(t, expectedHistory, machine.History())
 }
 
-func Test_option_expect_enter_no_params_handler_ok(t *testing.T) {
+func Test_option_expect_enter_one_param_and_variadic_handler_ok(t *testing.T) {
 	const (
 		close int = iota + 1
 		open
 	)
 
-	type instance = InstanceFSM[int, any]
+	type instance = InstanceFSM[int, int]
 
-	handlerOpen := func(ctx context.Context, instance instance, params ...any) error {
+	handlerOpen := func(ctx context.Context, instance instance, params ...int) error {
 		return nil
 	}
 
-	handlerClose := func(ctx context.Context, instance instance, params ...any) error {
+	handlerClose := func(ctx context.Context, instance instance, params int) error {
 		return nil
 	}
 
-	machine, _ := New(close, []Transition[int, any]{
+	machine, _ := New(close, []Transition[int, int]{
 		{
 			Name:  "open",
 			Src:   []int{close},
@@ -92,32 +92,32 @@ func Test_option_expect_enter_no_params_handler_ok(t *testing.T) {
 			Name:  "close",
 			Src:   []int{open},
 			Dst:   close,
-			Enter: OnEnterVariadic(handlerClose),
+			Enter: OnEnter(handlerClose),
 		},
-	}, WithFullHistory[any]())
+	}, WithFullHistory[int]())
 
-	expectedHistory := []HistoryItem[int, any]{
+	expectedHistory := []HistoryItem[int, int]{
 		{
-			Name:         "open",
-			From:         close,
-			To:           open,
-			ExpectFailed: true,
+			Name: "open",
+			From: close,
+			To:   open,
 		},
 		{
-			Name: "close",
-			From: open,
-			To:   close,
+			Name:   "close",
+			From:   open,
+			To:     close,
+			Params: []int{123},
 		},
 	}
 
 	require.NoError(t, machine.
-		With(ExpectEnterVariadic(handlerClose)).
+		With(ExpectEnterVariadic(handlerOpen)).
 		Apply(t.Context(), open))
 	require.Equal(t, open, machine.Current())
 
 	require.NoError(t, machine.
-		With(ExpectEnterVariadic(handlerClose)).
-		Apply(t.Context(), close))
+		With(ExpectEnter(handlerClose)).
+		Apply(t.Context(), close, 123))
 	require.Equal(t, close, machine.Current())
 
 	require.Equal(t, expectedHistory, machine.History())

@@ -66,7 +66,7 @@ func Test_undefined_src_state(t *testing.T) {
 	require.Nil(t, machine)
 }
 
-func Test_set_transitions_string_int_ok(t *testing.T) {
+func Test_set_transitions_int_ok(t *testing.T) {
 	const (
 		close int = iota + 1
 		open
@@ -316,7 +316,7 @@ func Test_execute_different_variadics(t *testing.T) {
 		require.Equal(t, 1, calledClose)
 	})
 
-	t.Run("OnEnterVariadic", func(t *testing.T) {
+	t.Run("OnEnterVariadicMix", func(t *testing.T) {
 		var calledOpen, calledClose int
 
 		machine, _ := New(close, []Transition[int, int]{
@@ -334,10 +334,8 @@ func Test_execute_different_variadics(t *testing.T) {
 			{
 				Name: "close",
 				Src:  []int{open}, Dst: close,
-				Enter: OnEnterVariadic(func(ctx context.Context, instance InstanceFSM[int, int], param ...int) error {
-					require.Equal(t, 2, len(param))
-					require.Equal(t, 5, param[0])
-					require.Equal(t, 6, param[1])
+				Enter: OnEnter(func(ctx context.Context, instance InstanceFSM[int, int], param int) error {
+					require.Equal(t, 6, param)
 					calledClose++
 					return nil
 				}),
@@ -348,7 +346,7 @@ func Test_execute_different_variadics(t *testing.T) {
 		require.Equal(t, open, machine.Current())
 		require.Equal(t, 1, calledOpen)
 
-		require.Nil(t, machine.Apply(t.Context(), close, 5, 6))
+		require.Nil(t, machine.Apply(t.Context(), close, 6))
 		require.Equal(t, close, machine.Current())
 		require.Equal(t, 1, calledClose)
 	})
@@ -365,8 +363,7 @@ func Test_set_state_undefined_case1(t *testing.T) {
 		{Name: "close", Src: []int{open}, Dst: close},
 	})
 
-	err := machine.Apply(t.Context(), open)
-	require.NoError(t, err)
+	require.NoError(t, machine.Apply(t.Context(), open))
 	require.Equal(t, open, machine.Current())
 }
 
@@ -465,7 +462,7 @@ func Test_set_transitions_retrigger_ok(t *testing.T) {
 	require.Equal(t, 1, calledClose)
 }
 
-func Test_set_repeated_transitions_panic(t *testing.T) {
+func Test_set_repeated_transitions_error(t *testing.T) {
 	const (
 		close int = iota + 1
 		roger
