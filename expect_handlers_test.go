@@ -15,11 +15,11 @@ func Test_option_expect_enter_handler_ok(t *testing.T) {
 
 	type instance = InstanceFSM[int, any]
 
-	handlerOpen := func(ctx context.Context, instance instance, param any) error {
+	handlerOpen := func(ctx context.Context, instance instance, params ...any) error {
 		return nil
 	}
 
-	handlerClose := func(ctx context.Context, instance instance, param any) error {
+	handlerClose := func(ctx context.Context, instance instance, params ...any) error {
 		return nil
 	}
 
@@ -28,13 +28,13 @@ func Test_option_expect_enter_handler_ok(t *testing.T) {
 			Name:  "open",
 			Src:   []int{close},
 			Dst:   open,
-			Enter: OnEnterWith(handlerOpen),
+			Enter: OnEnterVariadic(handlerOpen),
 		},
 		{
 			Name:  "close",
 			Src:   []int{open},
 			Dst:   close,
-			Enter: OnEnterWith(handlerClose),
+			Enter: OnEnterVariadic(handlerClose),
 		},
 	}, WithFullHistory[any]())
 
@@ -53,12 +53,12 @@ func Test_option_expect_enter_handler_ok(t *testing.T) {
 	}
 
 	require.NoError(t, machine.
-		With(ExpectEnter(handlerClose)).
+		With(ExpectEnterVariadic(handlerClose)).
 		Apply(t.Context(), open))
 	require.Equal(t, open, machine.Current())
 
 	require.NoError(t, machine.
-		With(ExpectEnter(handlerClose)).
+		With(ExpectEnterVariadic(handlerClose)).
 		Apply(t.Context(), close))
 	require.Equal(t, close, machine.Current())
 
@@ -73,11 +73,11 @@ func Test_option_expect_enter_no_params_handler_ok(t *testing.T) {
 
 	type instance = InstanceFSM[int, any]
 
-	handlerOpen := func(ctx context.Context, instance instance) error {
+	handlerOpen := func(ctx context.Context, instance instance, params ...any) error {
 		return nil
 	}
 
-	handlerClose := func(ctx context.Context, instance instance) error {
+	handlerClose := func(ctx context.Context, instance instance, params ...any) error {
 		return nil
 	}
 
@@ -86,13 +86,13 @@ func Test_option_expect_enter_no_params_handler_ok(t *testing.T) {
 			Name:  "open",
 			Src:   []int{close},
 			Dst:   open,
-			Enter: OnEnter(handlerOpen),
+			Enter: OnEnterVariadic(handlerOpen),
 		},
 		{
 			Name:  "close",
 			Src:   []int{open},
 			Dst:   close,
-			Enter: OnEnter(handlerClose),
+			Enter: OnEnterVariadic(handlerClose),
 		},
 	}, WithFullHistory[any]())
 
@@ -111,12 +111,12 @@ func Test_option_expect_enter_no_params_handler_ok(t *testing.T) {
 	}
 
 	require.NoError(t, machine.
-		With(ExpectEnterNoParams(handlerClose)).
+		With(ExpectEnterVariadic(handlerClose)).
 		Apply(t.Context(), open))
 	require.Equal(t, open, machine.Current())
 
 	require.NoError(t, machine.
-		With(ExpectEnterNoParams(handlerClose)).
+		With(ExpectEnterVariadic(handlerClose)).
 		Apply(t.Context(), close))
 	require.Equal(t, close, machine.Current())
 
@@ -198,11 +198,11 @@ func Test_option_expect_level2_enter_handler_case1_ok(t *testing.T) {
 		return nil
 	}
 
-	handlerRoger := func(ctx context.Context, instance instance, param string) error {
+	handlerRoger := func(ctx context.Context, instance instance, param ...string) error {
 		return nil
 	}
 
-	handlerClose := func(ctx context.Context, instance instance, param string) error {
+	handlerClose := func(ctx context.Context, instance instance, param ...string) error {
 		return nil
 	}
 
@@ -211,19 +211,19 @@ func Test_option_expect_level2_enter_handler_case1_ok(t *testing.T) {
 			Name:  "open",
 			Src:   []int{close},
 			Dst:   open,
-			Enter: OnEnterWith(handlerOpen),
+			Enter: OnEnter(handlerOpen),
 		},
 		{
 			Name:  "roger",
 			Src:   []int{open, close},
 			Dst:   roger,
-			Enter: OnEnterWith(handlerRoger),
+			Enter: OnEnterVariadic(handlerRoger),
 		},
 		{
 			Name:  "close",
 			Src:   []int{open, roger},
 			Dst:   close,
-			Enter: OnEnterWith(handlerClose),
+			Enter: OnEnterVariadic(handlerClose),
 		},
 	}
 	machine, _ := New(close, transitions, WithFullHistory[string]())
@@ -249,7 +249,7 @@ func Test_option_expect_level2_enter_handler_case1_ok(t *testing.T) {
 	}
 
 	require.NoError(t, machine.
-		With(ExpectEnter(handlerClose)).
+		With(ExpectEnterVariadic(handlerClose)).
 		Apply(t.Context(), open, "goto-roger"))
 	require.Equal(t, roger, machine.Current())
 
@@ -270,9 +270,9 @@ func Test_option_expect_level2_enter_handler_case2_ok(t *testing.T) {
 	type instance = InstanceFSM[int, string]
 
 	var (
-		handlerOpen,
-		handlerRoger,
-		handlerClose func(ctx context.Context, instance instance, param string) error
+		handlerOpen  func(ctx context.Context, instance instance, param string) error
+		handlerRoger func(ctx context.Context, instance instance, param ...string) error
+		handlerClose func(ctx context.Context, instance instance, param ...string) error
 	)
 
 	handlerOpen = func(ctx context.Context, instance instance, param string) error {
@@ -285,11 +285,11 @@ func Test_option_expect_level2_enter_handler_case2_ok(t *testing.T) {
 		return nil
 	}
 
-	handlerRoger = func(ctx context.Context, instance instance, param string) error {
+	handlerRoger = func(ctx context.Context, instance instance, param ...string) error {
 		return nil
 	}
 
-	handlerClose = func(ctx context.Context, instance instance, param string) error {
+	handlerClose = func(ctx context.Context, instance instance, param ...string) error {
 		return nil
 	}
 
@@ -298,19 +298,19 @@ func Test_option_expect_level2_enter_handler_case2_ok(t *testing.T) {
 			Name:  "open",
 			Src:   []int{close},
 			Dst:   open,
-			Enter: OnEnterWith(handlerOpen),
+			Enter: OnEnter(handlerOpen),
 		},
 		{
 			Name:  "roger",
 			Src:   []int{open, close},
 			Dst:   roger,
-			Enter: OnEnterWith(handlerRoger),
+			Enter: OnEnterVariadic(handlerRoger),
 		},
 		{
 			Name:  "close",
 			Src:   []int{open, roger},
 			Dst:   close,
-			Enter: OnEnterWith(handlerClose),
+			Enter: OnEnterVariadic(handlerClose),
 		},
 	}
 	machine, _ := New(close, transitions, WithFullHistory[string]())
@@ -337,7 +337,7 @@ func Test_option_expect_level2_enter_handler_case2_ok(t *testing.T) {
 	}
 
 	require.NoError(t, machine.
-		With(ExpectEnter(handlerClose)).
+		With(ExpectEnterVariadic(handlerClose)).
 		Apply(t.Context(), open, "goto-roger"))
 	require.Equal(t, roger, machine.Current())
 
@@ -358,9 +358,9 @@ func Test_option_expect_level2_enter_handler_case3_ok(t *testing.T) {
 	type instance = InstanceFSM[int, string]
 
 	var (
-		handlerOpen,
-		handlerRoger,
-		handlerClose func(ctx context.Context, instance instance, param string) error
+		handlerOpen  func(ctx context.Context, instance instance, param string) error
+		handlerRoger func(ctx context.Context, instance instance, param ...string) error
+		handlerClose func(ctx context.Context, instance instance, param ...string) error
 	)
 
 	handlerOpen = func(ctx context.Context, instance instance, param string) error {
@@ -373,11 +373,11 @@ func Test_option_expect_level2_enter_handler_case3_ok(t *testing.T) {
 		return nil
 	}
 
-	handlerRoger = func(ctx context.Context, instance instance, param string) error {
+	handlerRoger = func(ctx context.Context, instance instance, param ...string) error {
 		return nil
 	}
 
-	handlerClose = func(ctx context.Context, instance instance, param string) error {
+	handlerClose = func(ctx context.Context, instance instance, param ...string) error {
 		return nil
 	}
 
@@ -386,19 +386,19 @@ func Test_option_expect_level2_enter_handler_case3_ok(t *testing.T) {
 			Name:  "open",
 			Src:   []int{close},
 			Dst:   open,
-			Enter: OnEnterWith(handlerOpen),
+			Enter: OnEnter(handlerOpen),
 		},
 		{
 			Name:  "roger",
 			Src:   []int{open, close},
 			Dst:   roger,
-			Enter: OnEnterWith(handlerRoger),
+			Enter: OnEnterVariadic(handlerRoger),
 		},
 		{
 			Name:  "close",
 			Src:   []int{open, roger},
 			Dst:   close,
-			Enter: OnEnterWith(handlerClose),
+			Enter: OnEnterVariadic(handlerClose),
 		},
 	}
 	machine, _ := New(close, transitions, WithFullHistory[string]())
@@ -445,9 +445,9 @@ func Test_option_expect_level2_enter_handler_case4_ok(t *testing.T) {
 	type instance = InstanceFSM[int, string]
 
 	var (
-		handlerOpen,
-		handlerRoger,
-		handlerClose func(ctx context.Context, instance instance, param string) error
+		handlerOpen  func(ctx context.Context, instance instance, param string) error
+		handlerRoger func(ctx context.Context, instance instance, param ...string) error
+		handlerClose func(ctx context.Context, instance instance, param ...string) error
 	)
 
 	handlerOpen = func(ctx context.Context, instance instance, param string) error {
@@ -459,11 +459,11 @@ func Test_option_expect_level2_enter_handler_case4_ok(t *testing.T) {
 		return nil
 	}
 
-	handlerRoger = func(ctx context.Context, instance instance, param string) error {
+	handlerRoger = func(ctx context.Context, instance instance, param ...string) error {
 		return nil
 	}
 
-	handlerClose = func(ctx context.Context, instance instance, param string) error {
+	handlerClose = func(ctx context.Context, instance instance, param ...string) error {
 		return nil
 	}
 
@@ -472,19 +472,19 @@ func Test_option_expect_level2_enter_handler_case4_ok(t *testing.T) {
 			Name:  "open",
 			Src:   []int{close},
 			Dst:   open,
-			Enter: OnEnterWith(handlerOpen),
+			Enter: OnEnter(handlerOpen),
 		},
 		{
 			Name:  "roger",
 			Src:   []int{open, close},
 			Dst:   roger,
-			Enter: OnEnterWith(handlerRoger),
+			Enter: OnEnterVariadic(handlerRoger),
 		},
 		{
 			Name:  "close",
 			Src:   []int{open, roger},
 			Dst:   close,
-			Enter: OnEnterWith(handlerClose),
+			Enter: OnEnterVariadic(handlerClose),
 		},
 	}
 	machine, _ := New(close, transitions, WithFullHistory[string]())

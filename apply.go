@@ -168,27 +168,16 @@ func (fsk *FSM[State, Param]) applyByMatch(ctx context.Context, newState State, 
 func (fsk *FSM[State, Param]) applyTransitionByLengthParams(
 	ctx context.Context, stateTransition callbacks[State, Param], param ...Param,
 ) error {
-	switch len(param) {
-	case 0:
-		if stateTransition.EnterNoParams != nil {
-			if err := stateTransition.EnterNoParams(ctx, fsk); err != nil {
-				return fmt.Errorf("failed to execute enter (no-params) callback: %w", err)
-			}
-
-			return nil
+	switch {
+	case stateTransition.Enter != nil:
+		if len(param) != 1 {
+			return fmt.Errorf("%w: expected 1 param, got %d", ErrNotAllowed, len(param))
+		}
+		if err := stateTransition.Enter(ctx, fsk, param[0]); err != nil {
+			return fmt.Errorf("failed to execute enter (single-param) callback: %w", err)
 		}
 
-	case 1:
-		if stateTransition.Enter != nil {
-			if err := stateTransition.Enter(ctx, fsk, param[0]); err != nil {
-				return fmt.Errorf("failed to execute enter (single-param) callback: %w", err)
-			}
-
-			return nil
-		}
-	}
-
-	if stateTransition.EnterVariadic != nil {
+	case stateTransition.EnterVariadic != nil:
 		if err := stateTransition.EnterVariadic(ctx, fsk, param...); err != nil {
 			return fmt.Errorf("failed to execute enter (variadic) callback: %w", err)
 		}

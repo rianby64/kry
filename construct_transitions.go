@@ -13,8 +13,6 @@ func callbacksFrom[State comparable, Param any](name string, h TransitionHandler
 		cbs.Enter = h.with
 	case arityVariadic:
 		cbs.EnterVariadic = h.variadic
-	default:
-		cbs.EnterNoParams = h.noParams
 	}
 	return cbs
 }

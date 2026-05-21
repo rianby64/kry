@@ -38,8 +38,6 @@ func VisualizeStateLinks[State comparable, Param any](transitions []Transition[S
 			fn = transition.Enter.with
 		case arityVariadic:
 			fn = transition.Enter.variadic
-		default:
-			fn = transition.Enter.noParams
 		}
 		funcName := obtainFuncName(fn)
 

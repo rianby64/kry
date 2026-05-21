@@ -25,7 +25,7 @@ func main() {
 			Name: "open",
 			Src:  []int{initial, close},
 			Dst:  open,
-			Enter: kry.OnEnterWith(func(ctx context.Context, instance kry.InstanceFSM[int, CustomParam], param CustomParam) error {
+			Enter: kry.OnEnter(func(ctx context.Context, instance kry.InstanceFSM[int, CustomParam], param CustomParam) error {
 				fmt.Println("Opened with param:", param.Value)
 
 				return nil

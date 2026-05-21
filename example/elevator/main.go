@@ -34,7 +34,7 @@ func NewElevator() (*kry.FSM[ElevatorState, ElevatorParam], error) {
 			Name: "up",
 			Dst:  Up,
 			Src:  []ElevatorState{Stop},
-			Enter: kry.OnEnterWith(func(ctx context.Context, i kry.InstanceFSM[ElevatorState, ElevatorParam], p ElevatorParam) error {
+			Enter: kry.OnEnter(func(ctx context.Context, i kry.InstanceFSM[ElevatorState, ElevatorParam], p ElevatorParam) error {
 				fmt.Printf("🛑 → %s  (expected → floor %d)\n", i.Current(), p.Floor)
 				return nil
 			}),
@@ -47,7 +47,7 @@ func NewElevator() (*kry.FSM[ElevatorState, ElevatorParam], error) {
 			Name: "down",
 			Dst:  Down,
 			Src:  []ElevatorState{Stop},
-			Enter: kry.OnEnterWith(func(ctx context.Context, i kry.InstanceFSM[ElevatorState, ElevatorParam], p ElevatorParam) error {
+			Enter: kry.OnEnter(func(ctx context.Context, i kry.InstanceFSM[ElevatorState, ElevatorParam], p ElevatorParam) error {
 				fmt.Printf("↓  → floor %d\n", p.Floor)
 				return nil
 			}),

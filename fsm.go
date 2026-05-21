@@ -31,19 +31,17 @@ type InstanceFSM[State comparable, Param any] interface {
 	IgnoreCurrentTransition()
 }
 
-type handlerNoParams[State comparable, Param any] = func(ctx context.Context, instance InstanceFSM[State, Param]) error
 type handler[State comparable, Param any] = func(ctx context.Context, instance InstanceFSM[State, Param], param Param) error
 type handlerVariadic[State comparable, Param any] = func(ctx context.Context, instance InstanceFSM[State, Param], param ...Param) error
 type callbacks[State comparable, Param any] struct {
 	Name          string
-	EnterNoParams handlerNoParams[State, Param]
 	Enter         handler[State, Param]
 	EnterVariadic handlerVariadic[State, Param]
 }
 
 // Transition contains the name label, the source states, the destination state,
 // and an optional callback that is executed when the transition is triggered.
-// Declare the callback via OnEnter, OnEnterWith, or OnEnterVariadic.
+// Declare the callback via OnEnter or OnEnterVariadic.
 type Transition[State comparable, Param any] struct {
 	Name  string
 	Src   []State
@@ -61,7 +59,6 @@ type matchState[State comparable, Param any] struct {
 }
 
 type decoratorApply[State comparable, Param any] struct {
-	expectToCallEnterNoParams []handlerNoParams[State, Param]
 	expectToCallEnter         []handler[State, Param]
 	expectToCallEnterVariadic []handlerVariadic[State, Param]
 }

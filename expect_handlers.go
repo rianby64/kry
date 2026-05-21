@@ -23,23 +23,6 @@ func (fsk *FSM[State, Param]) checkCallbacksAgainstExpectHandlers(cbs callbacks[
 			return !expectedEnterFound
 		}
 
-		if len(fsk.decoratorApply.expectToCallEnterNoParams) > 0 {
-			expectedEnterNoParamsFound := false
-			expectToCallEnterNoParams := fsk.decoratorApply.expectToCallEnterNoParams
-			fsk.decoratorApply.expectToCallEnterNoParams = nil
-
-			pointerToEnterNoParams := reflect.ValueOf(cbs.EnterNoParams).Pointer()
-			for _, expectedHandler := range expectToCallEnterNoParams {
-				if pointerToEnterNoParams == reflect.ValueOf(expectedHandler).Pointer() {
-					expectedEnterNoParamsFound = true
-
-					break
-				}
-			}
-
-			return !expectedEnterNoParamsFound
-		}
-
 		if len(fsk.decoratorApply.expectToCallEnterVariadic) > 0 {
 			expectedEnterVariadicFound := false
 			expectToCallEnterVariadic := fsk.decoratorApply.expectToCallEnterVariadic

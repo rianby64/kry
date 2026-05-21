@@ -106,28 +106,6 @@ func ExpectEnter[State comparable, Param any](
 	}
 }
 
-// ExpectEnterNoParams accepts the handler that is expected to be called when applying the transition.
-//
-// During apply, in the history, the transition will reflect if the expected handler was called or not.
-func ExpectEnterNoParams[State comparable, Param any](
-	h handlerNoParams[State, Param],
-) func(fsk InstanceFSM[State, Param]) InstanceFSM[State, Param] {
-	return func(fsk InstanceFSM[State, Param]) InstanceFSM[State, Param] {
-		fsm, ok := fsk.(*FSM[State, Param])
-		if !ok {
-			panic("unable to cast FSM instance in ExpectEnterNoParams")
-		}
-
-		if fsm.decoratorApply == nil {
-			fsm.decoratorApply = &decoratorApply[State, Param]{}
-		}
-
-		fsm.decoratorApply.expectToCallEnterNoParams = append(fsm.decoratorApply.expectToCallEnterNoParams, h)
-
-		return fsk
-	}
-}
-
 // ExpectEnterVariadic accepts the handler that is expected to be called when applying the transition.
 //
 // During apply, in the history, the transition will reflect if the expected handler was called or not.
