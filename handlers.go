@@ -37,3 +37,8 @@ func OnEnterVariadic[State comparable, Param any](
 		variadic: fn,
 	}
 }
+
+// NoOp declares a transition with no callback. Apply succeeds regardless of param count.
+func NoOp[State comparable, Param any]() TransitionHandler[State, Param] {
+	return TransitionHandler[State, Param]{}
+}

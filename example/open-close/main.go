@@ -11,32 +11,48 @@ type CustomParam struct {
 	Value string
 }
 
+type State int
+
+const (
+	initial State = iota
+	close
+	open
+)
+
+func (s State) String() string {
+	switch s {
+	case initial:
+		return "initial"
+	case close:
+		return "close"
+	case open:
+		return "open"
+	default:
+		return "unknown"
+	}
+}
+
 func main() {
-	const (
-		initial int = iota
-		close
-		open
-	)
 
 	ctx := context.TODO()
 
-	fsk, err := kry.New(initial, []kry.Transition[int, CustomParam]{
-		{
-			Name: "open",
-			Src:  []int{initial, close},
-			Dst:  open,
-			Enter: kry.OnEnter(func(ctx context.Context, instance kry.InstanceFSM[int, CustomParam], param CustomParam) error {
-				fmt.Println("Opened with param:", param.Value)
-
-				return nil
-			}),
-		},
-		{
-			Name: "close",
-			Src:  []int{open},
-			Dst:  close,
-		},
-	}, kry.WithFullHistory[CustomParam]())
+	fsk, err := kry.Build[State, CustomParam](initial).
+		GoingTo(
+			open,
+			kry.From[State, CustomParam](initial, close).
+				On(
+					"open",
+					kry.OnEnter(func(ctx context.Context, instance kry.InstanceFSM[State, CustomParam], param CustomParam) error {
+						fmt.Println("Opened with param:", param.Value)
+						return nil
+					}),
+				),
+		).
+		GoingTo(close,
+			kry.From[State, CustomParam](open).On("close", kry.NoOp[State, CustomParam]()),
+		).
+		WithFullHistory().
+		Create()
 	if err != nil {
 		panic(err)
 	}

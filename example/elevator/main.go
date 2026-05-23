@@ -26,60 +26,30 @@ const (
 // 2️⃣  Transitions  (the "real work" that will be validated later)
 // -----------------------------------------------------------------
 func NewElevator() (*kry.FSM[ElevatorState, ElevatorParam], error) {
-	fsk, err := kry.New(Start, []kry.Transition[ElevatorState, ElevatorParam]{
-		// -------------------------------------------------------------
-		//  Upward movement – comes from Stop and goes to Up.
-		// -------------------------------------------------------------
-		{
-			Name: "up",
-			Dst:  Up,
-			Src:  []ElevatorState{Stop},
-			Enter: kry.OnEnter(func(ctx context.Context, i kry.InstanceFSM[ElevatorState, ElevatorParam], p ElevatorParam) error {
+	fsk, err := kry.Build[ElevatorState, ElevatorParam](Start).
+		GoingTo(Up,
+			kry.From[ElevatorState, ElevatorParam](Stop).On("up", kry.OnEnter(func(ctx context.Context, i kry.InstanceFSM[ElevatorState, ElevatorParam], p ElevatorParam) error {
 				fmt.Printf("🛑 → %s  (expected → floor %d)\n", i.Current(), p.Floor)
 				return nil
-			}),
-		},
-
-		// -------------------------------------------------------------
-		//  Downward movement – from Stop → Down.
-		// -------------------------------------------------------------
-		{
-			Name: "down",
-			Dst:  Down,
-			Src:  []ElevatorState{Stop},
-			Enter: kry.OnEnter(func(ctx context.Context, i kry.InstanceFSM[ElevatorState, ElevatorParam], p ElevatorParam) error {
+			})),
+		).
+		GoingTo(Down,
+			kry.From[ElevatorState, ElevatorParam](Stop).On("down", kry.OnEnter(func(ctx context.Context, i kry.InstanceFSM[ElevatorState, ElevatorParam], p ElevatorParam) error {
 				fmt.Printf("↓  → floor %d\n", p.Floor)
 				return nil
-			}),
-		},
-
-		// -------------------------------------------------------------
-		//  Stop – we can stop from Up or Down.
-		// -------------------------------------------------------------
-		{
-			Name: "stop",
-			Dst:  Stop,
-			Src:  []ElevatorState{Up, Down, Start},
-		},
-	}, kry.WithFullHistory[ElevatorParam]())
+			})),
+		).
+		GoingTo(Stop,
+			kry.From[ElevatorState, ElevatorParam](Up, Down, Start).On("stop", kry.NoOp[ElevatorState, ElevatorParam]()),
+		).
+		WithFullHistory().
+		Create()
 
 	if err != nil {
 		panic(err)
 	}
 
 	return fsk, nil
-}
-
-// floorForState resolves a state to a floor (used for params)
-func floorForState(s ElevatorState) int {
-	switch s {
-	case Up:
-		return 3
-	case Down:
-		return 1
-	default:
-		return 0
-	}
 }
 
 // -----------------------------------------------------------------
