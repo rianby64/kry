@@ -6,144 +6,104 @@ var (
 	idMachine uint64
 )
 
-func constructFromTransitions[Action, State comparable, Param any](
+func callbacksFrom[State comparable, Param any](name string, h TransitionHandler[State, Param]) callbacks[State, Param] {
+	cbs := callbacks[State, Param]{Name: name}
+	switch h.arity {
+	case arityWith:
+		cbs.Enter = h.with
+	case arityVariadic:
+		cbs.EnterVariadic = h.variadic
+	}
+	return cbs
+}
+
+func constructFromTransitions[State comparable, Param any](
 	initialState State,
-	transitions []Transition[Action, State, Param],
+	transitions []Transition[State, Param],
 ) (
-	map[Action]map[State]map[State]callbacks[Action, State, Param],
-	map[Action]map[State][]matchState[Action, State, Param],
-	map[Action]map[State][]matchState[Action, State, Param],
-	map[Action][]matchState[Action, State, Param],
+	map[State]map[State]callbacks[State, Param],
+	map[State][]matchState[State, Param],
+	map[State][]matchState[State, Param],
+	[]matchState[State, Param],
 	map[State]struct{},
-	map[Action]Transition[Action, State, Param],
-	bool,
 	error,
 ) {
-	path := make(map[Action]map[State]map[State]callbacks[Action, State, Param])
-	pathByMatchSrc := make(map[Action]map[State][]matchState[Action, State, Param])
-	pathByMatchDst := make(map[Action]map[State][]matchState[Action, State, Param])
-	pathMatch := make(map[Action][]matchState[Action, State, Param])
+	path := make(map[State]map[State]callbacks[State, Param])
+	pathByMatchSrc := make(map[State][]matchState[State, Param])
+	pathByMatchDst := make(map[State][]matchState[State, Param])
+	pathMatch := make([]matchState[State, Param], 0)
 	states := map[State]struct{}{initialState: {}}
-	canTriggerEvents := true
-	events := make(map[Action]Transition[Action, State, Param])
 
 	var zeroState State
 
 	for index, transition := range transitions {
-		action := transition.Name
-		if _, ok := path[action]; !ok {
-			path[action] = make(map[State]map[State]callbacks[Action, State, Param])
-		}
-
-		if _, ok := events[action]; ok {
-			canTriggerEvents = false
-		}
+		name := transition.Name
 
 		if len(transition.Src) == 0 && transition.SrcFn != nil && transition.DstFn != nil && transition.Dst == zeroState {
-			if _, ok := pathMatch[action]; !ok {
-				pathMatch[action] = make([]matchState[Action, State, Param], 0)
-			}
-
-			pathMatch[action] = append(pathMatch[action], matchState[Action, State, Param]{
+			pathMatch = append(pathMatch, matchState[State, Param]{
 				MatchSrc: transition.SrcFn,
 				MatchDst: transition.DstFn,
-				Callbacks: callbacks[Action, State, Param]{
-					EnterVariadic: transition.EnterVariadic,
-					Enter:         transition.Enter,
-					EnterNoParams: transition.EnterNoParams,
-				},
+				Callbacks: callbacksFrom(name, transition.Enter),
 			})
 
 			continue
 		}
 
 		if len(transition.Src) == 0 && transition.SrcFn == nil {
-			return nil, nil, nil, nil, nil, nil, false,
-				fmt.Errorf("for action %v(index=%d) neither src states nor matching function found: %w", action, index, ErrNotFound)
+			return nil, nil, nil, nil, nil,
+				fmt.Errorf("for transition %q(index=%d) neither src states nor matching function found: %w", name, index, ErrNotFound)
 		}
 
 		dst := transition.Dst
-		if dst == zeroState && transition.DstFn == nil {
-			return nil, nil, nil, nil, nil, nil, false,
-				fmt.Errorf("for action %v(index=%d) destination state is zero value: %w", action, index, ErrNotAllowed)
-		}
 
 		if transition.DstFn != nil {
-			if _, ok := pathByMatchDst[action]; !ok {
-				pathByMatchDst[action] = make(map[State][]matchState[Action, State, Param])
-			}
-
 			for _, src := range transition.Src {
-				if _, ok := pathByMatchDst[action][src]; !ok {
-					pathByMatchDst[action][src] = make([]matchState[Action, State, Param], 0)
+				if _, ok := pathByMatchDst[src]; !ok {
+					pathByMatchDst[src] = make([]matchState[State, Param], 0)
 				}
 
 				states[src] = struct{}{}
-				pathByMatchDst[action][src] = append(pathByMatchDst[action][src], matchState[Action, State, Param]{
-					MatchDst: transition.DstFn,
-					Callbacks: callbacks[Action, State, Param]{
-						EnterVariadic: transition.EnterVariadic,
-						Enter:         transition.Enter,
-						EnterNoParams: transition.EnterNoParams,
-					},
+				pathByMatchDst[src] = append(pathByMatchDst[src], matchState[State, Param]{
+					MatchDst:  transition.DstFn,
+					Callbacks: callbacksFrom(name, transition.Enter),
 				})
 			}
 		}
 
-		if dst == zeroState {
+		if dst == zeroState && transition.DstFn != nil {
 			continue
 		}
 
-		if _, ok := path[action][dst]; !ok {
-			path[action][dst] = make(map[State]callbacks[Action, State, Param])
+		if _, ok := path[dst]; !ok {
+			path[dst] = make(map[State]callbacks[State, Param])
 		}
 
 		if transition.SrcFn != nil {
-			if _, ok := pathByMatchSrc[action]; !ok {
-				pathByMatchSrc[action] = make(map[State][]matchState[Action, State, Param])
+			if _, ok := pathByMatchSrc[dst]; !ok {
+				pathByMatchSrc[dst] = make([]matchState[State, Param], 0)
 			}
 
-			if _, ok := pathByMatchSrc[action][dst]; !ok {
-				pathByMatchSrc[action][dst] = make([]matchState[Action, State, Param], 0)
-			}
-
-			pathByMatchSrc[action][dst] = append(pathByMatchSrc[action][dst], matchState[Action, State, Param]{
+			pathByMatchSrc[dst] = append(pathByMatchSrc[dst], matchState[State, Param]{
 				MatchSrc: transition.SrcFn,
-				Callbacks: callbacks[Action, State, Param]{
-					EnterVariadic: transition.EnterVariadic,
-					Enter:         transition.Enter,
-					EnterNoParams: transition.EnterNoParams,
-				},
+				Callbacks: callbacksFrom(name, transition.Enter),
 			})
 		}
 
 		for _, src := range transition.Src {
-			if _, ok := path[action][dst][src]; ok {
-				return nil, nil, nil, nil, nil, nil, false,
+			if _, ok := path[dst][src]; ok {
+				return nil, nil, nil, nil, nil,
 					fmt.Errorf(
-						"action %v from state %v to state %v: %w",
-						action, src, dst, ErrRepeated,
+						"transition %q from state %v to state %v: %w",
+						name, src, dst, ErrRepeated,
 					)
 			}
 
 			states[src] = struct{}{}
-			path[action][dst][src] = callbacks[Action, State, Param]{
-				EnterVariadic: transition.EnterVariadic,
-				Enter:         transition.Enter,
-				EnterNoParams: transition.EnterNoParams,
-			}
+			path[dst][src] = callbacksFrom(name, transition.Enter)
 		}
 
-		events[action] = transition
 		states[dst] = struct{}{}
 	}
 
-	return path,
-		pathByMatchSrc,
-		pathByMatchDst,
-		pathMatch,
-		states,
-		events,
-		canTriggerEvents,
-		nil
+	return path, pathByMatchSrc, pathByMatchDst, pathMatch, states, nil
 }

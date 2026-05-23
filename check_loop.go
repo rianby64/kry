@@ -42,7 +42,7 @@ func (ld loopDetection[State]) Get(id uint64, stateFrom, stateTo State) int {
 	return ld[id][stateFrom][stateTo]
 }
 
-func (fsk *FSM[Action, State, Param]) checkLoop(
+func (fsk *FSM[State, Param]) checkLoop(
 	ctx context.Context,
 	currentState,
 	newState State,
@@ -53,7 +53,7 @@ func (fsk *FSM[Action, State, Param]) checkLoop(
 		ok          bool
 	)
 
-	loopKeyValue := loopKey + ctxKeyLoop(fsk.id)
+	loopKeyValue := ctxKeyLoop(fsk.id)
 	loopFromCtx := ctx.Value(loopKeyValue)
 	if loopFromCtx == nil {
 		loopEx = newLoopDetection[State](fsk.id)

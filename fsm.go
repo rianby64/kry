@@ -12,8 +12,6 @@ func (e errString) Error() string {
 }
 
 const (
-	loopKey ctxKeyLoop = 482 // just a random number
-
 	ErrUnknown  errString = "unknown"
 	ErrNotFound errString = "not found"
 	ErrRepeated errString = "already exists"
@@ -22,75 +20,71 @@ const (
 	ErrNotAllowed errString = "not allowed"
 )
 
-type InstanceFSM[Action, State comparable, Param any] interface {
+type InstanceFSM[State comparable, Param any] interface {
 	Current() State
 	Previous() State
 
-	With(opts ...func(fsk InstanceFSM[Action, State, Param]) InstanceFSM[Action, State, Param]) InstanceFSM[Action, State, Param]
-	Event(ctx context.Context, action Action, param ...Param) error
-	Apply(ctx context.Context, action Action, newState State, param ...Param) error
+	With(opts ...func(fsk InstanceFSM[State, Param]) InstanceFSM[State, Param]) InstanceFSM[State, Param]
+	Apply(ctx context.Context, newState State, param ...Param) error
 
 	ForceState(newState State) error
 	IgnoreCurrentTransition()
 }
 
-type handlerNoParams[Action, State comparable, Param any] = func(ctx context.Context, instance InstanceFSM[Action, State, Param]) error
-type handler[Action, State comparable, Param any] = func(ctx context.Context, instance InstanceFSM[Action, State, Param], param Param) error
-type handlerVariadic[Action, State comparable, Param any] = func(ctx context.Context, instance InstanceFSM[Action, State, Param], param ...Param) error
-type callbacks[Action, State comparable, Param any] struct {
-	EnterNoParams handlerNoParams[Action, State, Param]
-	Enter         handler[Action, State, Param]
-	EnterVariadic handlerVariadic[Action, State, Param]
+type handler[State comparable, Param any] = func(ctx context.Context, instance InstanceFSM[State, Param], param Param) error
+type handlerVariadic[State comparable, Param any] = func(ctx context.Context, instance InstanceFSM[State, Param], param ...Param) error
+type callbacks[State comparable, Param any] struct {
+	Name          string
+	Enter         handler[State, Param]
+	EnterVariadic handlerVariadic[State, Param]
 }
 
-// Transition contains the name of the action, the source states, the destination state,
-// and optional callbacks that are executed when the action is triggered.
-type Transition[Action, State comparable, Param any] struct {
-	Name  Action
+// Transition contains the name label, the source states, the destination state,
+// and an optional callback that is executed when the transition is triggered.
+// Declare the callback via OnEnter or OnEnterVariadic.
+type Transition[State comparable, Param any] struct {
+	Name  string
 	Src   []State
 	SrcFn func(state State) bool // optional custom matching function for source states
 	Dst   State
 	DstFn func(state State) bool // optional custom matching function for destination states
 
-	EnterNoParams handlerNoParams[Action, State, Param]
-	Enter         handler[Action, State, Param]
-	EnterVariadic handlerVariadic[Action, State, Param]
+	Enter TransitionHandler[State, Param]
 }
 
-type matchState[Action, State comparable, Param any] struct {
-	MatchSrc  func(state State) bool // function to determine if transition is valid from the given state
-	MatchDst  func(state State) bool // function to determine if transition is valid to the given state
-	Callbacks callbacks[Action, State, Param]
+type matchState[State comparable, Param any] struct {
+	MatchSrc  func(state State) bool
+	MatchDst  func(state State) bool
+	Callbacks callbacks[State, Param]
 }
 
-type decoratorApply[Action, State comparable, Param any] struct {
-	expectToCallEnterNoParams []handlerNoParams[Action, State, Param]
-	expectToCallEnter         []handler[Action, State, Param]
-	expectToCallEnterVariadic []handlerVariadic[Action, State, Param]
+type decoratorApply[State comparable, Param any] struct {
+	expectToCallEnter         []handler[State, Param]
+	expectToCallEnterVariadic []handlerVariadic[State, Param]
 }
 
-type FSM[Action, State comparable, Param any] struct {
+type FSM[State comparable, Param any] struct {
 	id            uint64
-	currentAction Action
+	currentName   string // name of the currently executing transition, used by panic recovery
 	currentState  State
 	previousState State
 	ignoreCurrent bool
+	forced        bool
+	forcedTo      *State
 	runningApply  bool
 
 	states         map[State]struct{}
-	path           map[Action]map[State]map[State]callbacks[Action, State, Param] // action -> dst state -> src state -> callbacks
-	pathByMatchSrc map[Action]map[State][]matchState[Action, State, Param]        // action -> dst state -> list of match conditions for src states
-	pathByMatchDst map[Action]map[State][]matchState[Action, State, Param]        // action -> src state -> list of match conditions for dst states
-	pathMatch      map[Action][]matchState[Action, State, Param]                  // action -> list of match conditions for both src and dst states
-	events         map[Action]Transition[Action, State, Param]                    // action -> transition
+	path           map[State]map[State]callbacks[State, Param] // dst state -> src state -> callbacks
+	pathByMatchSrc map[State][]matchState[State, Param]        // dst state -> list of match conditions for src states
+	pathByMatchDst map[State][]matchState[State, Param]        // src state -> list of match conditions for dst states
+	pathMatch      []matchState[State, Param]                  // list of match conditions for both src and dst states
 
-	canTriggerEvents bool
-	graphic          string
-	historyKeeper    *historyKeeper[Action, State, Param]
-	decoratorApply   *decoratorApply[Action, State, Param]
-	stackTrace       bool
-	panicHandler     PanicHandler
-	cloneHandler     CloneHandler[Param]
+	graphic        string
+	historyKeeper  *historyKeeper[State, Param]
+	decoratorApply *decoratorApply[State, Param]
+	stackTrace     bool
+	panicHandler   PanicHandler
+	cloneHandler   CloneHandler[Param]
 }
 
 // New creates a new FSM instance with the given initial state, transitions, and options.
@@ -98,11 +92,11 @@ type FSM[Action, State comparable, Param any] struct {
 // The initial state and transitions are required and also these parameters are immutable after creation.
 //
 // The transitions define the allowed state changes.
-func New[Action, State comparable, Param any](
+func New[State comparable, Param any](
 	initialState State,
-	transitions []Transition[Action, State, Param],
+	transitions []Transition[State, Param],
 	options ...func(o *Options[Param]) *Options[Param],
-) (*FSM[Action, State, Param], error) {
+) (*FSM[State, Param], error) {
 	finalOptions := &Options[Param]{}
 	for _, opt := range options {
 		finalOptions = opt(finalOptions)
@@ -112,33 +106,27 @@ func New[Action, State comparable, Param any](
 		finalOptions.cloneHandler = cloneHandler[Param]
 	}
 
-	path, pathByMatchSrc, pathByMatchDst, pathMatch, states, events,
-		canTriggerEvents, err := constructFromTransitions(initialState, transitions)
+	path, pathByMatchSrc, pathByMatchDst, pathMatch, states, err := constructFromTransitions(initialState, transitions)
 	if err != nil {
 		return nil, err
-	}
-
-	if !canTriggerEvents {
-		events = nil
 	}
 
 	idMachine++
 
 	graphic := fmt.Sprintf("digraph fsm_%d {\n%s\n}", idMachine, VisualizeActions(transitions))
 
-	return &FSM[Action, State, Param]{
+	return &FSM[State, Param]{
 		id:             idMachine,
 		currentState:   initialState,
+		previousState:  initialState,
 		path:           path,
 		pathByMatchSrc: pathByMatchSrc,
 		pathByMatchDst: pathByMatchDst,
 		pathMatch:      pathMatch,
 		states:         states,
 
-		events:           events,
-		canTriggerEvents: canTriggerEvents,
-		graphic:          graphic,
-		historyKeeper: newHistoryKeeper[Action, State](
+		graphic: graphic,
+		historyKeeper: newHistoryKeeper[State](
 			finalOptions.historySize,
 			finalOptions.stackTrace,
 			finalOptions.cloneHandler,
@@ -149,31 +137,39 @@ func New[Action, State comparable, Param any](
 	}, nil
 }
 
-func (fsk *FSM[Action, State, Param]) String() string {
+func (fsk *FSM[State, Param]) String() string {
 	return fsk.graphic
 }
 
-func (fsk *FSM[Action, State, Param]) Current() State {
+func (fsk *FSM[State, Param]) Current() State {
 	return fsk.currentState
 }
 
-func (fsk *FSM[Action, State, Param]) Previous() State {
+func (fsk *FSM[State, Param]) Previous() State {
 	return fsk.previousState
 }
 
-func (fsk *FSM[Action, State, Param]) ForceState(newState State) error {
+func (fsk *FSM[State, Param]) ForceState(newState State) error {
 	_, ok := fsk.states[newState]
 	if !ok {
 		return fmt.Errorf("state %w: %v", ErrUnknown, newState)
 	}
 
-	fsk.previousState = fsk.currentState
+	prevState := fsk.currentState
+	fsk.previousState = prevState
 	fsk.currentState = newState
+
+	if fsk.runningApply {
+		fsk.forced = true
+		fsk.forcedTo = &newState
+	} else {
+		_ = fsk.historyKeeper.push("", prevState, newState, nil, defaultSkipStackTrace, false, false, true, &newState)
+	}
 
 	return nil
 }
 
-func (fsk *FSM[Action, State, Param]) IgnoreCurrentTransition() {
+func (fsk *FSM[State, Param]) IgnoreCurrentTransition() {
 	if !fsk.runningApply {
 		return
 	}
