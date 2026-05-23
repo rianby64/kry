@@ -69,6 +69,8 @@ type FSM[State comparable, Param any] struct {
 	currentState  State
 	previousState State
 	ignoreCurrent bool
+	forced        bool
+	forcedTo      *State
 	runningApply  bool
 
 	states         map[State]struct{}
@@ -153,8 +155,16 @@ func (fsk *FSM[State, Param]) ForceState(newState State) error {
 		return fmt.Errorf("state %w: %v", ErrUnknown, newState)
 	}
 
-	fsk.previousState = fsk.currentState
+	prevState := fsk.currentState
+	fsk.previousState = prevState
 	fsk.currentState = newState
+
+	if fsk.runningApply {
+		fsk.forced = true
+		fsk.forcedTo = &newState
+	} else {
+		_ = fsk.historyKeeper.push("", prevState, newState, nil, defaultSkipStackTrace, false, false, true, &newState)
+	}
 
 	return nil
 }

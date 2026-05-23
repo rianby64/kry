@@ -796,3 +796,103 @@ func Test_history_in_machine_apply_within_apply_case3(t *testing.T) {
 		require.ErrorIs(t, item.Err, expectedHistory[index].Err)
 	}
 }
+
+// ── ForceState history recording ─────────────────────────────────────────────
+
+func Test_history_force_state_inside_apply(t *testing.T) {
+	const (
+		closed int = iota + 1
+		roger
+		open
+	)
+
+	machine, err := New(closed, []Transition[int, any]{
+		{
+			Name: "open", Src: []int{closed}, Dst: open,
+			Enter: OnEnterVariadic(func(_ context.Context, instance InstanceFSM[int, any], _ ...any) error {
+				return instance.ForceState(roger)
+			}),
+		},
+		{Name: "close", Src: []int{open, roger}, Dst: closed},
+	}, WithFullHistory[any]())
+
+	require.NoError(t, err)
+	require.NoError(t, machine.Apply(t.Context(), open))
+	require.Equal(t, roger, machine.Current())
+
+	history := machine.History()
+	require.Len(t, history, 1)
+
+	item := history[0]
+	require.Equal(t, "open", item.Name)
+	require.Equal(t, closed, item.From)
+	require.Equal(t, open, item.To)         // intended destination
+	require.True(t, item.Forced)
+	require.NotNil(t, item.ForcedTo)
+	require.Equal(t, roger, *item.ForcedTo) // actual destination
+	require.True(t, item.HasViolation())
+}
+
+func Test_history_force_state_outside_apply(t *testing.T) {
+	const (
+		closed int = iota + 1
+		open
+	)
+
+	machine, err := New(closed, []Transition[int, any]{
+		{Name: "open", Src: []int{closed}, Dst: open},
+	}, WithFullHistory[any]())
+
+	require.NoError(t, err)
+
+	require.NoError(t, machine.ForceState(open))
+	require.Equal(t, open, machine.Current())
+
+	history := machine.History()
+	require.Len(t, history, 1)
+
+	item := history[0]
+	require.Equal(t, "", item.Name)
+	require.Equal(t, closed, item.From)
+	require.Equal(t, open, item.To)
+	require.True(t, item.Forced)
+	require.NotNil(t, item.ForcedTo)
+	require.Equal(t, open, *item.ForcedTo)
+	require.True(t, item.HasViolation())
+}
+
+func Test_history_has_violation_false_for_normal_transition(t *testing.T) {
+	const (
+		closed int = iota + 1
+		open
+	)
+
+	machine, err := New(closed, []Transition[int, any]{
+		{Name: "open", Src: []int{closed}, Dst: open},
+	}, WithFullHistory[any]())
+
+	require.NoError(t, err)
+	require.NoError(t, machine.Apply(t.Context(), open))
+
+	history := machine.History()
+	require.Len(t, history, 1)
+	require.False(t, history[0].HasViolation())
+	require.False(t, history[0].Forced)
+	require.Nil(t, history[0].ForcedTo)
+}
+
+func Test_history_force_state_outside_apply_no_recording_without_history_option(t *testing.T) {
+	const (
+		closed int = iota + 1
+		open
+	)
+
+	machine, err := New(closed, []Transition[int, any]{
+		{Name: "open", Src: []int{closed}, Dst: open},
+	})
+
+	require.NoError(t, err)
+	require.NoError(t, machine.ForceState(open))
+	require.Equal(t, open, machine.Current())
+	require.Empty(t, machine.History())
+}

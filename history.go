@@ -25,8 +25,15 @@ type HistoryItem[State comparable, Param any] struct {
 	StackTrace string
 	Reason     string
 	Ignored    bool
+	Forced     bool
+	ForcedTo   *State
 
 	ExpectFailed bool
+}
+
+// HasViolation reports whether an escape hatch was used for this transition.
+func (h HistoryItem[State, Param]) HasViolation() bool {
+	return h.Ignored || h.Forced
 }
 
 type historyItem[State comparable, Param any] struct {
@@ -70,6 +77,8 @@ func newHistoryItem[State comparable, Param any](
 	err error,
 	ignored bool,
 	expectFailed bool,
+	forced bool,
+	forcedTo *State,
 	params ...Param,
 ) *historyItem[State, Param] {
 	return &historyItem[State, Param]{
@@ -80,6 +89,8 @@ func newHistoryItem[State comparable, Param any](
 			Err:          err,
 			Ignored:      ignored,
 			ExpectFailed: expectFailed,
+			Forced:       forced,
+			ForcedTo:     forcedTo,
 			Params:       params,
 		},
 	}
@@ -97,9 +108,19 @@ func cloneHandler[Param any](params ...Param) ([]Param, error) {
 	return cloned, nil
 }
 
+// Push records a history item. Its signature is stable — existing callers are unaffected.
 func (hk *historyKeeper[State, Param]) Push(
 	name string, from State, to State,
 	err error, skipStackTrace int, ignored bool, expectFailed bool,
+	params ...Param,
+) error {
+	return hk.push(name, from, to, err, skipStackTrace, ignored, expectFailed, false, nil, params...)
+}
+
+func (hk *historyKeeper[State, Param]) push(
+	name string, from State, to State,
+	err error, skipStackTrace int, ignored bool, expectFailed bool,
+	forced bool, forcedTo *State,
 	params ...Param,
 ) error {
 	if hk.maxLength == 0 {
@@ -111,13 +132,12 @@ func (hk *historyKeeper[State, Param]) Push(
 		return fmt.Errorf("failed to clone params: %w", errClone)
 	}
 
-	item := newHistoryItem(name, from, to, err, ignored, expectFailed, cloneParams...)
+	item := newHistoryItem(name, from, to, err, ignored, expectFailed, forced, forcedTo, cloneParams...)
 
 	if hk.stackTrace && err != nil {
 		item.Reason = err.Error()
 		const depth = 64
 		pcs := make([]uintptr, depth)
-		// skip 3 frames: runtime.Callers -> push -> Push
 		n := runtime.Callers(skipStackTrace, pcs)
 		pcs = pcs[:n]
 
@@ -217,17 +237,20 @@ func (fsk *FSM[State, Param]) intermediateKeeper(
 	err error,
 	ignored bool,
 	expectFailed bool,
+	forced bool,
+	forcedTo *State,
 	param ...Param,
 ) (*historyKeeper[State, Param], error) {
-	finalKeeper := newHistoryKeeper[State, Param](
+	finalKeeper := newHistoryKeeper[State](
 		fsk.historyKeeper.maxLength,
 		fsk.stackTrace,
 		fsk.cloneHandler,
 	)
 
-	errHistory := finalKeeper.Push(
+	errHistory := finalKeeper.push(
 		name, from, to,
 		err, defaultSkipStackTrace, ignored, expectFailed,
+		forced, forcedTo,
 		param...,
 	)
 	if errHistory != nil {

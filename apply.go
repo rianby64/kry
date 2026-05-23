@@ -34,6 +34,8 @@ func (fsk *FSM[State, Param]) apply(
 		currentHistoryKeeper.Append(historyKeeper)
 		fsk.historyKeeper = currentHistoryKeeper
 		fsk.runningApply = false
+		fsk.forced = false
+		fsk.forcedTo = nil
 
 		if fsk.ignoreCurrent {
 			fsk.ignoreCurrent = false
@@ -52,7 +54,9 @@ func (fsk *FSM[State, Param]) apply(
 		if intermediateKeeper, errHistory := fsk.intermediateKeeper(
 			historyKeeper,
 			cbs.Name, from, to,
-			errors.Unwrap(err), ignored, expectFailed, param...,
+			errors.Unwrap(err), ignored, expectFailed,
+			fsk.forced, fsk.forcedTo,
+			param...,
 		); errHistory != nil {
 			err = fmt.Errorf("%w: %w", err, errHistory)
 		} else {
@@ -66,7 +70,9 @@ func (fsk *FSM[State, Param]) apply(
 	if intermediateKeeper, errHistory := fsk.intermediateKeeper(
 		historyKeeper,
 		cbs.Name, from, to,
-		nil, fsk.ignoreCurrent, expectFailed, param...,
+		nil, fsk.ignoreCurrent, expectFailed,
+		fsk.forced, fsk.forcedTo,
+		param...,
 	); errHistory != nil {
 		return fmt.Errorf("failed to keep forced history: %w", errHistory)
 	} else {
